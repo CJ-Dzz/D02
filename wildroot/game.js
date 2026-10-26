@@ -16,18 +16,18 @@
     hud: $("hud"), start: $("start-screen"), story: $("story-screen"), choice: $("choice-screen"), pause: $("pause-screen"), end: $("end-screen"), bossIntro: $("boss-intro"),
     phaseLabel: $("phase-label"), phaseIcon: $("phase-icon"), clockText: $("clock-text"), phaseFill: $("phase-fill"), threat: $("threat-label"),
     hpFill: $("hp-fill"), hpText: $("hp-text"), xpFill: $("xp-fill"), xpText: $("xp-text"),
-    score: $("score-text"), water: $("water-text"), coins: $("coin-text"), dash: $("dash-fill"),
+    score: $("score-text"), water: $("water-text"), coins: $("coin-text"), dash: $("dash-fill"), dashLabel: $("dash-label"), dashState: $("dash-state"),
     context: $("context-hint"), sound: $("sound-btn"), choiceCards: $("choice-cards"), choiceEyebrow: $("choice-eyebrow"), choiceTitle: $("choice-title"), choiceSubtitle: $("choice-subtitle"),
     endBadge: $("end-badge"), endTitle: $("end-title"), endCopy: $("end-copy"), endScore: $("end-score"), endKills: $("end-kills"), endCrops: $("end-crops"), endCrystals: $("end-crystals"), buildSummary: $("build-summary"),
     best: $("best-score"), crystals: $("meta-crystals"), metaBonus: $("meta-bonus"),
     overclockFill: $("overclock-fill"), overclockText: $("overclock-text"), combo: $("combo-display"),
     buildItems: $("build-items"), aiSpeech: $("ai-speech"), event: $("random-event"), fusion: $("fusion-banner"), fusionTitle: $("fusion-title"), fusionCopy: $("fusion-copy"),
-    skillName: $("skill-name"), skillIcon: $("skill-icon"), skillCopy: $("skill-copy"), skillFill: $("skill-fill"), mission: $("mission-card"),
+    skillName: $("skill-name"), skillIcon: $("skill-icon"), skillCopy: $("skill-copy"), skillFill: $("skill-fill"), skillReady: $("skill-ready"), mission: $("mission-card"),
     stance: $("stance-meter"), stanceFill: $("stance-fill"), stanceText: $("stance-text"),
     characterDetailIcon: $("character-detail-icon"), characterDetailSkill: $("character-detail-skill"), characterDetailCd: $("character-detail-cd"), characterDetailCopy: $("character-detail-copy"), characterDetailPassive: $("character-detail-passive"),
     storyChapter: $("story-chapter"), storyTitle: $("story-title"), storyText: $("story-text"), storySpeaker: $("story-speaker"), storyAvatar: $("story-avatar"),
     bossName: $("boss-name"), bossIcon: $("boss-icon"), bossWarning: $("boss-warning"),
-    terrainCard: $("terrain-card"), terrainName: $("terrain-name"), terrainCopy: $("terrain-copy"), restShop: $("rest-shop"), restShopItems: $("rest-shop-items"),
+    terrainCard: $("terrain-card"), terrainName: $("terrain-name"), terrainCopy: $("terrain-copy"), restShop: $("rest-shop"), restShopItems: $("rest-shop-items"), merchantItems: $("merchant-items"), merchantRefresh: $("merchant-refresh"), restContinue: $("rest-continue"), activeTool: $("active-tool"), activeToolName: $("active-tool-name"), activeToolCount: $("active-tool-count"),
     codex: $("codex-screen"), codexTabs: $("codex-tabs"), codexGrid: $("codex-grid"), codexProgress: $("codex-progress"), seedLoadoutCount: $("seed-loadout-count")
   };
 
@@ -126,7 +126,7 @@
   };
   let selectedCharacter = "sprout";
   let selectedWeapon = "rifle";
-  let selectedSeedLoadout = [0, 1, 2];
+  let selectedSeedLoadout = [0, 1, 2, 3];
 
   const WEAPONS = {
     rifle: { name: "脉冲步枪", tag: "均衡连射", copy: "射速、射程与伤害均衡，适合所有作物光环。", damage: 1, fire: 1, speed: 1, size: 1, shots: 1, spread: 0, life: 1.25, pierce: 0, homing: 0, splash: 0 },
@@ -172,6 +172,24 @@
     { id: "peacannon", pair: [2, 2], achievement: "pea_battery", achievementName: "豆阵成军", unlockCopy: "累计收获 6 株豌豆炮", name: "双联豆炮", icon: "✹", color: "#9ee77f", cost: 4, copy: "两株成熟豌豆炮合并为重型炮座，每 3 秒发射高伤贯穿炮弹。" },
     { id: "solarforge", pair: [1, 1], achievement: "sun_grid", achievementName: "追光者", unlockCopy: "累计收获 6 株向日葵", name: "聚光向日塔", icon: "☀", color: "#ffe26f", cost: 4, copy: "两株成熟向日葵合并为聚光塔，周期产出阳光并维持丰收动能。" },
     { id: "cryoforge", pair: [0, 4], achievement: "hybrid_mind", achievementName: "杂交学徒", unlockCopy: "累计完成 3 次自然杂交", name: "冷热反应炉", icon: "♨", color: "#ef9fba", cost: 5, copy: "辣椒与寒冰菇合并为反应炉，周期制造兼具爆炸与冻结的热震波。" }
+  ];
+
+  const STAT_TALENTS = [
+    { id: "power", icon: "⚔", type: "三级属性", name: "战术增幅", max: 4, color: "#ff816f", desc: (level) => `人物攻击力 +10%（当前节点 LV.${level}）`, apply: () => { game.player.damage *= 1.1; } },
+    { id: "plating", icon: "⬢", type: "三级属性", name: "复合护甲", max: 4, color: "#86a9c8", desc: (level) => `人物所受伤害 -7%（当前节点 LV.${level}）`, apply: () => { game.player.armor *= .93; } },
+    { id: "stride", icon: "»", type: "三级属性", name: "伺服步态", max: 4, color: "#65d7bd", desc: (level) => `移动速度 +7%（当前节点 LV.${level}）`, apply: () => { game.player.speed *= 1.07; } },
+    { id: "evasion", icon: "◇", type: "三级属性", name: "相位闪避", max: 4, color: "#c69af0", desc: (level) => `闪避率 +5%（当前 ${Math.round(game.player.dodge * 100 + 5)}%）`, apply: () => { game.player.dodge = Math.min(.28, game.player.dodge + .05); } }
+  ];
+
+  const MERCHANT_ITEMS = [
+    { id: "shovel", icon: "♠", name: "折叠开荒铲", cost: 6, copy: "主动道具，耐久 5。切换后按 E，可在当前位置开垦新田。", apply: () => { game.activeTools.shovel = 5; selectActiveTool("shovel"); } },
+    { id: "overdrive", icon: "⚔", name: "赤红增幅器", cost: 6, copy: "攻击力 +14%。可能并不适合纯种植构筑。", apply: () => { game.player.damage *= 1.14; } },
+    { id: "carapace", icon: "⬢", name: "甲壳复合板", cost: 5, copy: "人物所受伤害 -12%。", apply: () => { game.player.armor *= .88; } },
+    { id: "boots", icon: "»", name: "蜻蜓伺服靴", cost: 5, copy: "移动速度 +12%。", apply: () => { game.player.speed *= 1.12; } },
+    { id: "cloak", icon: "◇", name: "概率斗篷", cost: 6, copy: "闪避率 +9%，最高不超过 32%。", apply: () => { game.player.dodge = Math.min(.32, game.player.dodge + .09); } },
+    { id: "scope", icon: "◎", name: "露珠瞄准镜", cost: 5, copy: "暴击率 +6%。", apply: () => { game.player.crit += .06; } },
+    { id: "heart", icon: "♥", name: "罐装心跳", cost: 5, copy: "最大生命 +24，并恢复 24。", apply: () => { game.player.maxHp += 24; game.player.hp += 24; } },
+    { id: "trigger", icon: "⌁", name: "风切扳机", cost: 7, copy: "远程与近战基础攻击间隔 -10%。", apply: () => { game.player.fireRate *= .9; game.player.meleeRate *= .9; } }
   ];
 
   const ENEMY_DATA = {
@@ -277,6 +295,8 @@
       water: 5 + backupLevel,
       seeds: startingSeeds,
       selectedSeed: selectedSeedLoadout[0],
+      selectedTool: null,
+      activeTools: {},
       kills: 0,
       crops: 0,
       shake: 0,
@@ -289,6 +309,10 @@
       threatPulse: 0,
       upgrades: [`主武器：${weapon.name}`, `种子槽：${selectedSeedLoadout.map((index) => CROP_TYPES[index].name).join(" / ")}`],
       upgradeCounts: {},
+      statTalents: {},
+      merchantOwned: {},
+      merchantStock: [],
+      merchantRefreshes: 0,
       items: {},
       fusions: {},
       fusionCount: 0,
@@ -296,17 +320,18 @@
       hybridPity: 0,
       comboCards: {},
       comboPlantCount: 0,
+      comboHarvestStacks: {},
+      hybridStatStacks: {},
       terrainDays: terrainSchedule.days,
       finalTerrainRules: terrainSchedule.finale,
       irrigation: { x: WORLD_W / 2, y: WORLD_H / 2 - 205, progress: 0, captured: false, contested: false },
       terrainDamageTimer: 0,
       freezeTimer: 0,
-      eventTimer: 20,
+      eventTimer: 38,
       activeEvent: null,
       eventTime: 0,
       eventCount: 0,
-      eventPlantDeadline: 0,
-      eventPlantMisses: 0,
+      eventBannerTime: 0,
       dayStoryShown: {},
       overclock: 0,
       overclockTime: 0,
@@ -335,6 +360,8 @@
       harvestShieldLevel: 0,
       meleeHarvestRate: 0,
       aiSpeechTime: 0,
+      missionTime: 7,
+      terrainCardTime: 7,
       toast: { text: "", sub: "", time: 0 },
       pendingChoice: null,
       player: {
@@ -344,6 +371,8 @@
         hp: 100 + backupLevel * 7,
         maxHp: 100 + backupLevel * 7,
         shield: character.shield + backupLevel * 2,
+        armor: 1,
+        dodge: 0,
         speed: 220,
         damage: 17 * character.damage * weapon.damage,
         fireRate: .205 * character.fire * weapon.fire,
@@ -407,6 +436,7 @@
     input.dash = false;
     input.skill = false;
     selectSeed(selectedSeedLoadout[0]);
+    rollMerchantStock(true);
     updateLoadoutAvailability();
     updateTerrainUi();
     renderRestShop();
@@ -421,35 +451,22 @@
     for (const zone of FIELD_ZONES) {
       for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 2; col++) {
-        plots.push({
-          x: zone.x - 36 + col * 72,
-          y: zone.y - 35 + row * 70,
-          baseX: zone.x - 36 + col * 72,
-          baseY: zone.y - 35 + row * 70,
-          radius: 27,
-          zone: zone.id,
-          growMod: zone.grow,
-          yieldMod: zone.yield,
-          armorMod: zone.id === "crater" ? 1.35 : 1,
-          state: "empty",
-          crop: null,
-          growth: 0,
-          wet: 0,
-          hp: 100,
-          maxHp: 100,
-          mutation: false,
-          pulse: rand(0, TAU),
-          hit: 0,
-          sway: rand(0, TAU),
-          passiveTimer: rand(1, 3),
-          mimicCrop: null,
-          hybrid: null,
-          comboPlant: null
-        });
+          plots.push(makePlot(zone.x - 36 + col * 72, zone.y - 35 + row * 70, zone.id));
         }
       }
     }
     return plots;
+  }
+
+  function makePlot(x, y, zoneId, dug = false) {
+    const zone = FIELD_ZONES.find((entry) => entry.id === zoneId) || FIELD_ZONES[0];
+    return {
+      x, y, baseX: x, baseY: y, radius: 27, zone: zone.id,
+      growMod: zone.grow, yieldMod: zone.yield, armorMod: zone.id === "crater" ? 1.35 : 1,
+      state: "empty", crop: null, growth: 0, wet: 0, hp: 100, maxHp: 100,
+      mutation: false, pulse: rand(0, TAU), hit: 0, sway: rand(0, TAU), passiveTimer: rand(1, 3),
+      mimicCrop: null, hybrid: null, comboPlant: null, dug
+    };
   }
 
   let storyIndex = 0;
@@ -527,7 +544,7 @@
 
   function currentDuration() {
     if (game.phase === "day") return 38;
-    if (game.phase === "rest") return 24;
+    if (game.phase === "rest") return Infinity;
     if ([2, 4, FINAL_DAY].includes(game.day)) return 999;
     return 29;
   }
@@ -550,11 +567,12 @@
       game.enemies = game.enemies.filter((enemy) => !enemy.dead);
       game.enemyBullets.length = 0;
       game.hazards.length = 0;
+      rollMerchantStock(game.day === 1);
       ui.restShop.classList.remove("hidden");
       renderRestShop();
-      showToast(`第 ${game.day} 日 · 休整轮`, "24 秒无害兽刷新：采购种子、浇水、播种并整理阵地");
-      updateMission("休整与种子采购", "怪物只掉落生物质；使用面板购买本轮携带的三类种子");
-      aiSay("敌群撤退了！先别追，二十四秒全拿来种田和补给。", 4);
+      showToast(`第 ${game.day} 日 · 无限休整`, "害兽停止刷新；完成采购和播种后按 F 主动进入夜晚");
+      updateMission("休整、商店与播种", "没有时间限制；可购买四类种子、组合卡与随机强力道具");
+      aiSay("敌群撤退了！慢慢整理，准备好再按 F 叫它们回来。", 4);
       sound.tone(360, .35, "triangle", .04, 140);
     } else if (game.phase === "rest") {
       game.phase = "night";
@@ -604,6 +622,8 @@
     ui.terrainName.textContent = label.name;
     ui.terrainCopy.textContent = label.copy;
     ui.terrainCard.style.borderColor = activeTerrainIds().length > 1 ? "#ff9bb8" : "#fff";
+    ui.terrainCard.classList.remove("hidden");
+    game.terrainCardTime = 7;
   }
 
   function updateLoadoutAvailability() {
@@ -613,6 +633,65 @@
       card.classList.toggle("unavailable", !allowed.includes(index));
     });
     if (game && !allowed.includes(game.selectedSeed)) game.selectedSeed = allowed[0];
+  }
+
+  function rollMerchantStock(guaranteeShovel = false) {
+    if (!game) return;
+    const available = MERCHANT_ITEMS.filter((item) => !game.merchantOwned[item.id]);
+    const stock = [];
+    const shovel = available.find((item) => item.id === "shovel");
+    if (guaranteeShovel && shovel) stock.push(shovel.id);
+    const pool = available.filter((item) => !stock.includes(item.id));
+    while (stock.length < Math.min(3, available.length) && pool.length) {
+      const index = Math.floor(Math.random() * pool.length);
+      stock.push(pool.splice(index, 1)[0].id);
+    }
+    game.merchantStock = stock;
+  }
+
+  function renderMerchant() {
+    if (!game || !ui.merchantItems) return;
+    ui.merchantItems.innerHTML = "";
+    for (const id of game.merchantStock) {
+      const item = MERCHANT_ITEMS.find((entry) => entry.id === id);
+      if (!item) continue;
+      const owned = Boolean(game.merchantOwned[id]);
+      const button = document.createElement("button");
+      button.innerHTML = `<b>${item.icon} ${item.name}</b><small>${item.copy}</small><em>${owned ? "已售罄" : `◆${item.cost}`}</em>`;
+      button.disabled = owned || game.coins < item.cost || game.phase !== "rest";
+      button.addEventListener("click", () => buyMerchantItem(id));
+      ui.merchantItems.appendChild(button);
+    }
+    if (!game.merchantStock.length) ui.merchantItems.innerHTML = "<small>货郎的背包已经被你买空了。</small>";
+    const refreshCost = 2 + game.merchantRefreshes * 2;
+    ui.merchantRefresh.textContent = `刷新 ◆${refreshCost}`;
+    ui.merchantRefresh.disabled = game.phase !== "rest" || game.coins < refreshCost || MERCHANT_ITEMS.every((item) => game.merchantOwned[item.id]);
+  }
+
+  function refreshMerchant() {
+    if (!game || game.phase !== "rest") return;
+    const cost = 2 + game.merchantRefreshes * 2;
+    if (game.coins < cost) return;
+    game.coins -= cost;
+    game.merchantRefreshes++;
+    rollMerchantStock(false);
+    renderRestShop();
+    showToast("货郎重新翻了翻背包", `本轮已刷新 ${game.merchantRefreshes} 次；下次刷新需要 ◆${2 + game.merchantRefreshes * 2}`);
+    sound.pickup();
+  }
+
+  function buyMerchantItem(id) {
+    const item = MERCHANT_ITEMS.find((entry) => entry.id === id);
+    if (!game || !item || game.phase !== "rest" || game.merchantOwned[id] || game.coins < item.cost) return;
+    game.coins -= item.cost;
+    game.merchantOwned[id] = true;
+    item.apply();
+    game.upgrades.push(`商店：${item.name}`);
+    showToast(`购入 · ${item.name}`, item.copy);
+    renderRestShop();
+    renderBuildDock();
+    updateHud();
+    sound.level();
   }
 
   function renderRestShop() {
@@ -642,6 +721,7 @@
       button.addEventListener("click", () => buyComboCard(combo.id));
       ui.restShopItems.appendChild(button);
     }
+    renderMerchant();
   }
 
   function buySeed(index) {
@@ -824,6 +904,8 @@
     if (!ui.mission) return;
     ui.mission.querySelector("b").textContent = title;
     ui.mission.querySelector("span").textContent = copy;
+    ui.mission.classList.remove("hidden");
+    if (game) game.missionTime = 6.5;
   }
 
   function spawnBoss(type = "boss") {
@@ -918,18 +1000,18 @@
     return enemy;
   }
 
+  function enemySpawnPool(day = game.day) {
+    const pool = ["mite", "mite", "mite", "mite", "mite", "mite", "spitter"];
+    if (day >= 2) pool.push("boar", "boar", "boar", "wasp", "wasp");
+    if (day >= 3) pool.push("leech", "leech", "glitch", "thief");
+    if (day >= 4) pool.push("bloater", "healer");
+    return pool;
+  }
+
   function spawnEnemy(type = null, forcedX = null, forcedY = null) {
-    const roll = Math.random();
     if (!type) {
-      if (game.day >= 4 && roll > .94) type = "healer";
-      else if (game.day >= 3 && roll > .87) type = "thief";
-      else if (game.day >= 3 && roll > .79) type = "glitch";
-      else if (game.day >= 4 && roll > .7) type = "bloater";
-      else if (game.day >= 3 && roll > .59) type = "leech";
-      else if (game.day >= 2 && roll > .46) type = "wasp";
-      else if (game.day >= 2 && roll > .33) type = "boar";
-      else if (roll > .17) type = "spitter";
-      else type = "mite";
+      const pool = enemySpawnPool();
+      type = pool[Math.floor(Math.random() * pool.length)];
     }
     let x = forcedX;
     let y = forcedY;
@@ -973,6 +1055,14 @@
     game.shieldFlash = Math.max(0, game.shieldFlash - dt * 3.2);
     game.threatPulse = Math.max(0, game.threatPulse - dt);
     if (game.toast.time > 0) game.toast.time -= dt;
+    if (game.missionTime > 0) {
+      game.missionTime -= dt;
+      if (game.missionTime <= 0) ui.mission.classList.add("hidden");
+    }
+    if (game.terrainCardTime > 0) {
+      game.terrainCardTime -= dt;
+      if (game.terrainCardTime <= 0) ui.terrainCard.classList.add("hidden");
+    }
     if (game.aiSpeechTime > 0) {
       game.aiSpeechTime -= dt;
       if (game.aiSpeechTime <= 0) ui.aiSpeech.classList.add("hidden");
@@ -1009,11 +1099,12 @@
 
     if (game.phaseTime >= currentDuration() && !(game.phase === "night" && bossTypeForDay(game.day))) phaseTransition();
 
-    const maxEnemies = (game.phase === "night" ? 38 : 22) + game.day * 4;
+    const timePressure = Math.log1p(game.elapsed / 35) * 2.8 + Math.sqrt(game.elapsed / 60) * 1.4;
+    const maxEnemies = Math.round((game.phase === "night" ? 12 : 7) + timePressure + (game.day - 1) * 2);
     if (game.phase !== "rest" && game.spawnTimer <= 0 && game.enemies.length < maxEnemies && !(game.boss && game.boss.enter > 0)) {
       spawnEnemy();
-      const pressure = 1 + game.elapsed / 170;
-      game.spawnTimer = (game.phase === "night" ? rand(.38, .78) : rand(.85, 1.55)) / pressure;
+      const pressure = 1 + Math.log1p(game.elapsed / 60) * .32 + (game.day - 1) * .07;
+      game.spawnTimer = (game.phase === "night" ? rand(.86, 1.22) : rand(1.45, 2.05)) / pressure;
     }
 
     updatePlayer(dt);
@@ -1219,7 +1310,7 @@
       }
       if (!compiled) for (const index of game.carriedSeeds) game.seeds[index] += 1;
       ringEffect(p.x, p.y, "#b79aff", 560);
-      showToast(character.skill, compiled ? `编译 ${compiled} 株作物，成熟植株已执行齐射` : "附近没有作物，回收当前携带的三类种子各 1 枚");
+      showToast(character.skill, compiled ? `编译 ${compiled} 株作物，成熟植株已执行齐射` : "附近没有作物，回收当前携带的四类种子各 1 枚");
     } else if (game.character === "beat") {
       game.skillFx = { type: "beat", time: .9, maxTime: .9 };
       const conductors = game.plots.filter((plot) => plot.state === "ready").length;
@@ -1252,23 +1343,10 @@
     if (game.phase === "rest") return;
     if (game.eventTime > 0) {
       game.eventTime -= dt;
-      if (game.activeEvent === "seedfrenzy") {
-        game.eventPlantDeadline -= dt;
-        ui.event.querySelector("span").textContent = `剩余 ${Math.ceil(game.eventTime)}s · ${Math.max(0, game.eventPlantDeadline).toFixed(1)}s 内必须播种`;
-        if (game.eventPlantDeadline <= 0) {
-          const damage = 5 + game.eventPlantMisses * 4;
-          game.eventPlantMisses++;
-          game.eventPlantDeadline += 3;
-          game.player.hurtCooldown = 0;
-          hurtPlayer(damage, game.player.x, game.player.y - 80);
-          floatText(game.player.x, game.player.y - 48, `播种失败 -${damage}`, "#ff6d86", 15);
-          aiSay(`种植时限违约！下一次惩罚将升到 ${5 + game.eventPlantMisses * 4} 点。`, 2.5);
-        }
-      }
+      game.eventBannerTime -= dt;
+      if (game.eventBannerTime <= 0) ui.event.classList.add("hidden");
       if (game.eventTime <= 0) {
         game.activeEvent = null;
-        game.eventPlantDeadline = 0;
-        game.eventPlantMisses = 0;
         ui.event.classList.add("hidden");
       }
       return;
@@ -1279,13 +1357,13 @@
       { id: "seedrain", name: "生物质雨", copy: "通用生物质从数据云坠落，可在休整轮采购种子" },
       { id: "growstorm", name: "生长季风", copy: "15 秒内作物生长速度提高三倍" },
       { id: "migration", name: "害兽团建", copy: "一大群高价值害兽正在迷路过来" },
-      { id: "magstorm", name: "磁极反转", copy: "14 秒内全地图掉落物主动飞向 AI 娘" },
-      { id: "seedfrenzy", name: "种子狂暴", copy: "持续 30 秒：每 3 秒内必须播种，否则连续扣血且伤害递增" }
+      { id: "magstorm", name: "磁极反转", copy: "14 秒内全地图掉落物主动飞向 AI 娘" }
     ];
     const event = events[Math.floor(Math.random() * events.length)];
     game.activeEvent = event.id;
-    game.eventTime = event.id === "seedfrenzy" ? 30 : event.id === "growstorm" ? 15 : event.id === "magstorm" ? 14 : 12;
-    game.eventTimer = rand(31, 43);
+    game.eventTime = event.id === "growstorm" ? 15 : event.id === "magstorm" ? 14 : 12;
+    game.eventBannerTime = 4.8;
+    game.eventTimer = rand(65, 90);
     game.eventCount++;
     ui.event.querySelector("b").textContent = event.name;
     ui.event.querySelector("span").textContent = event.copy;
@@ -1297,21 +1375,8 @@
       for (let i = 0; i < 18; i++) dropPickup("coin", game.player.x + rand(-280, 280), game.player.y + rand(-210, 210), 1);
     }
     if (event.id === "migration") {
-      for (let i = 0; i < 14; i++) spawnEnemy(i % 5 === 0 ? "bloater" : i % 3 === 0 ? "wasp" : "leech");
+      for (let i = 0; i < 8; i++) spawnEnemy(i % 4 === 0 ? "bloater" : i % 3 === 0 ? "wasp" : "leech");
     }
-    if (event.id === "seedfrenzy") {
-      game.eventPlantDeadline = 3;
-      game.eventPlantMisses = 0;
-      for (const index of game.carriedSeeds) game.seeds[index] += 1;
-      aiSay("种子协议失控！每三秒播种一次，空田和种子都要提前规划！", 4.2);
-    }
-  }
-
-  function registerPlanting() {
-    if (game.activeEvent !== "seedfrenzy") return;
-    game.eventPlantDeadline = 3;
-    game.eventPlantMisses = Math.max(0, game.eventPlantMisses - 1);
-    floatText(game.player.x, game.player.y - 42, "时限重置 3.0s", "#fff071", 12);
   }
 
   function updateOrbit(dt) {
@@ -1829,6 +1894,14 @@
   function hurtPlayer(amount, fromX, fromY) {
     const p = game.player;
     if (p.hurtCooldown > 0 || p.dashTime > 0 || game.ended) return;
+    if (p.dodge > 0 && chance(p.dodge)) {
+      p.hurtCooldown = .28;
+      floatText(p.x, p.y - 34, "闪避！", "#d8b7ff", 14);
+      ringEffect(p.x, p.y, "#d7b1ff", 58);
+      sound.tone(740, .07, "sine", .025, 180);
+      return;
+    }
+    amount *= p.armor;
     const anchorLevel = game.items.anchor || 0;
     if (anchorLevel) {
       const ratio = p.stationaryCharge / p.stationaryMax;
@@ -2071,13 +2144,19 @@
     }
     const plot = nearestPlot();
     if (!plot) {
-      ui.context.classList.add("hidden");
-      input.interact = false;
+      if (game.selectedTool === "shovel" && (game.activeTools.shovel || 0) > 0) {
+        ui.context.querySelector("span").textContent = `在当前位置开垦新田 · 耐久 ${game.activeTools.shovel}`;
+        ui.context.classList.remove("hidden");
+        if (input.interact) { input.interact = false; digPlot(); }
+      } else {
+        ui.context.classList.add("hidden");
+        input.interact = false;
+      }
       return;
     }
     let hint = "";
     if (plot.state === "empty") hint = game.seeds[game.selectedSeed] > 0 ? `播种${CROP_TYPES[game.selectedSeed].name}` : `${CROP_TYPES[game.selectedSeed].name}种子不足`;
-    else if (plot.state === "ready" && plot.comboPlant) hint = `${COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant).name}正在自动运转`;
+    else if (plot.state === "ready" && plot.comboPlant) hint = `收获${COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant).name}，永久获得本局属性`;
     else if (plot.state === "ready") hint = `收获${CROP_TYPES[plot.crop].name}`;
     else if (plot.wet <= 2) hint = game.water > 0 ? "浇水，恢复生长" : "缺少灌溉水";
     else hint = `成长中 ${Math.floor((plot.growth / CROP_TYPES[plot.crop].grow) * 100)}%`;
@@ -2089,8 +2168,6 @@
     if (plot.state === "empty") {
       if (game.seeds[game.selectedSeed] <= 0) { floatText(plot.x, plot.y - 25, "种子不足", "#ff9b79", 12); return; }
       plantPlot(plot, game.selectedSeed, "手动播种");
-    } else if (plot.state === "ready" && plot.comboPlant) {
-      floatText(plot.x, plot.y - 42, "自动运转中", COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant).color, 11);
     } else if (plot.state === "ready") {
       harvest(plot);
     } else if (plot.wet <= 2) {
@@ -2113,15 +2190,55 @@
     plot.comboPlant = null;
     game.seeds[seedIndex]--;
     discoverEntry(`crop:${CROP_TYPES[seedIndex].id}`, 1);
-    registerPlanting();
     burst(plot.x, plot.y, CROP_TYPES[seedIndex].color, 7, 70);
     if (source !== "手动播种") floatText(plot.x, plot.y - 26, source, CROP_TYPES[seedIndex].color, 10);
     sound.plant();
     return true;
   }
 
+  function harvestComboPlant(plot) {
+    const combo = COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant);
+    if (!combo) return;
+    const stacks = game.comboHarvestStacks[combo.id] || 0;
+    if (stacks >= 3) {
+      showToast(`${combo.name}已达到属性上限`, "仍可收获资源，但该组合的本局属性最多叠加 3 次");
+    } else {
+      game.comboHarvestStacks[combo.id] = stacks + 1;
+      if (combo.id === "peacannon") game.player.damage *= 1.1;
+      else if (combo.id === "solarforge") { game.player.maxHp += 12; game.player.hp = Math.min(game.player.maxHp, game.player.hp + 12); }
+      else if (combo.id === "cryoforge") { game.player.armor *= .9; game.player.dodge = Math.min(.32, game.player.dodge + .03); }
+    }
+    game.crops++;
+    game.score += 110;
+    game.coins += 6;
+    grantHarvestMomentum(2);
+    addOverclock(20);
+    const statCopy = combo.id === "peacannon" ? "攻击力 +10%" : combo.id === "solarforge" ? "最大生命 +12" : "受伤 -10%，闪避 +3%";
+    showToast(`组合收获 · ${combo.name}`, `${statCopy}；生物质 +6（属性最多叠加 3 次）`);
+    floatText(plot.x, plot.y - 62, statCopy, combo.color, 14);
+    ringEffect(plot.x, plot.y, combo.color, 260);
+    burst(plot.x, plot.y, combo.color, 30, 230);
+    sound.boom();
+    clearPlot(plot);
+  }
+
+  function applyHybridHarvestStat(plot) {
+    if (!plot.hybrid) return;
+    const stacks = game.hybridStatStacks[plot.hybrid] || 0;
+    if (stacks >= 5) return;
+    game.hybridStatStacks[plot.hybrid] = stacks + 1;
+    let copy = "";
+    if (plot.hybrid === "sunpepper") { game.player.damage *= 1.03; copy = "攻击力 +3%"; }
+    else if (plot.hybrid === "steampepper") { game.player.armor *= .97; copy = "所受伤害 -3%"; }
+    else if (plot.hybrid === "prismpea") { game.player.crit = Math.min(.45, game.player.crit + .02); copy = "暴击率 +2%"; }
+    else if (plot.hybrid === "railpea") { game.player.speed *= 1.02; copy = "移动速度 +2%"; }
+    else if (plot.hybrid === "mirrorfrost") { game.player.dodge = Math.min(.32, game.player.dodge + .02); copy = "闪避率 +2%"; }
+    else if (plot.hybrid === "twinsun") { game.player.maxHp += 4; game.player.hp += 4; copy = "最大生命 +4"; }
+    if (copy) floatText(plot.x, plot.y - 58, `杂交属性 · ${copy}`, "#fff1a0", 12);
+  }
+
   function harvest(plot) {
-    if (plot.comboPlant) return;
+    if (plot.comboPlant) { harvestComboPlant(plot); return; }
     const type = plot.crop;
     const crop = CROP_TYPES[type];
     game.crops++;
@@ -2218,10 +2335,14 @@
       addOverclock(45 * harvestScale);
       game.player.shield = Math.min(70, game.player.shield + 12);
     }
+    applyHybridHarvestStat(plot);
     clearPlot(plot);
   }
 
   function dropPickup(type, x, y, value = 1, variant = 0) {
+    if (type === "xp" && hasTerrain("bridge") && x > 1100 && x < 1280) {
+      x = x < 1190 ? 1086 : 1294;
+    }
     const angle = rand(0, TAU);
     const speed = rand(55, 145);
     game.pickups.push({ type, x, y, value, variant, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, age: 0, life: 16, dead: false });
@@ -2244,6 +2365,10 @@
       }
       item.x += item.vx * dt;
       item.y += item.vy * dt;
+      if (item.type === "xp" && hasTerrain("bridge") && item.x > 1100 && item.x < 1280) {
+        item.x = item.x < 1190 ? 1086 : 1294;
+        item.vx = 0;
+      }
       if (d < p.radius + 12) collectPickup(item);
       if (item.life <= 0) item.dead = true;
     }
@@ -2279,7 +2404,7 @@
       p.xpNeed = Math.round(36 + p.level * 18);
       game.water++;
       for (const plot of game.plots) if (plot.state === "growing") plot.growth += CROP_TYPES[plot.crop].grow * .05;
-      showChoice("level");
+      showChoice(p.level % 3 === 0 ? "milestone" : "level");
     }
   }
 
@@ -2350,7 +2475,7 @@
     { id: "drone", icon: "◎", type: "伙伴插件", name: "守田无人机", max: 3, color: "#ae9bff", desc: () => "成熟作物在附近或拥有丰收动能时，无人机自动索敌。", detail: "离开农田且动能耗尽后停火；满级可与量子水壶融合。", apply: () => game.droneLevel++ },
     { id: "growth", icon: "♣", type: "农艺插件", name: "量子水壶", max: 3, color: "#78daa5", desc: () => "作物生长速度 +28%，立即获得 1 水。", detail: "满级可与守田无人机融合。", apply: () => { game.cropGrowth *= 1.28; game.water++; } },
     { id: "irrigator", icon: "💧", type: "克制农机", name: "脉冲滴灌器", max: 2, color: "#69cde0", desc: (level) => `每 ${level === 1 ? "10.5" : "8"} 秒为一株缺水作物补水，仍消耗 1 水。`, detail: "只处理一株且不创造水，避免自动化取代资源规划。", apply: () => {} },
-    { id: "autoseeder", icon: "⚙", type: "克制农机", name: "单格播种机", max: 2, color: "#d5ad6b", desc: (level) => `每 ${level === 1 ? "13" : "10"} 秒在身边${level === 1 ? "小" : "中"}范围播种一格。`, detail: "消耗当前种子、不收获且要求玩家靠近田地；可响应种子狂暴。", apply: () => {} },
+    { id: "autoseeder", icon: "⚙", type: "克制农机", name: "单格播种机", max: 2, color: "#d5ad6b", desc: (level) => `每 ${level === 1 ? "13" : "10"} 秒在身边${level === 1 ? "小" : "中"}范围播种一格。`, detail: "消耗当前种子、不收获且要求玩家靠近田地。", apply: () => {} },
     { id: "magnet", icon: "◉", type: "采集插件", name: "拾荒磁芯", max: 2, color: "#77dce5", desc: () => "拾取范围提高 50%。", detail: "少绕路，多打怪，超频更快。", apply: () => game.player.magnet *= 1.5 },
     { id: "armor", icon: "⬡", type: "守田插件", name: "果冻土壤", max: 3, color: "#c2b185", desc: () => "作物受到的伤害降低 26%。", detail: "软乎乎，但害兽咬不动。", apply: () => game.cropArmor *= 1.35 },
     { id: "magnetplant", icon: "◉", type: "作物插件", name: "磁菇线圈", max: 3, color: "#5fd0db", desc: () => "磁力菇追踪与清弹收益提高 25%。", detail: "满级可与导航花粉融合。", apply: () => game.magnetPower *= 1.25 },
@@ -2374,28 +2499,42 @@
     { id: "turret", name: "固定丰收炮台", icon: "⌂", color: "#79d6a3", req: { anchor: 3, growth: 2 }, copy: "扎根协议 LV.3 × 量子水壶 LV.2", effect: "靠近成熟作物蓄满后额外增伤并持续恢复护盾" }
   ];
 
+  const LOADOUT_ITEM_REQUIREMENTS = {
+    pepper: [0], sun: [1], thorn: [2], magnetplant: [3], mintplant: [4], cloneplant: [5],
+    bounce: [0, 5], homing: [3, 5]
+  };
+
+  function itemMatchesLoadout(item) {
+    const required = LOADOUT_ITEM_REQUIREMENTS[item.id];
+    return !required || required.some((index) => game.carriedSeeds.includes(index));
+  }
+
   function showChoice(mode) {
     if (state !== "playing") return;
     state = "choice";
     game.pendingChoice = mode;
     sound.level();
-    ui.choiceEyebrow.textContent = mode === "dawn" ? "稀有农艺补给" : `战斗数据转译 · LV.${game.player.level}`;
-    ui.choiceTitle.textContent = mode === "dawn" ? "AI 娘从废品堆里翻出了农场零件" : "把战斗经验写回种植系统";
-    ui.choiceSubtitle.textContent = mode === "dawn" ? "黎明补给用于补齐农机、作物插件和融合路线" : "升级主要强化种植与农战转化；人物火力需要成熟作物或收获来启动";
+    const milestone = mode === "milestone";
+    ui.choiceEyebrow.textContent = milestone ? `三级属性节点 · LV.${game.player.level}` : mode === "dawn" ? "稀有农艺补给" : `战斗数据转译 · LV.${game.player.level}`;
+    ui.choiceTitle.textContent = milestone ? "选择一项人物基础属性" : mode === "dawn" ? "AI 娘从废品堆里翻出了农场零件" : "把战斗经验写回种植系统";
+    ui.choiceSubtitle.textContent = milestone ? "人物属性只会在等级 3、6、9……出现；普通等级不会混入这些数值" : mode === "dawn" ? "黎明补给只提供与四种携带种子相符的作物插件" : "天赋池已按本轮携带种子过滤；同名插件可以升级并完成融合";
     ui.choiceCards.innerHTML = "";
-    const pool = ITEMS.filter((item) => (!item.character || item.character === game.character) && (game.items[item.id] || 0) < item.max);
+    const pool = milestone
+      ? STAT_TALENTS.filter((item) => (game.statTalents[item.id] || 0) < item.max)
+      : ITEMS.filter((item) => itemMatchesLoadout(item) && (!item.character || item.character === game.character) && (game.items[item.id] || 0) < item.max);
     const chosen = [];
-    if (mode === "dawn") {
+    if (!milestone && mode === "dawn") {
       const exclusive = pool.find((item) => item.character === game.character);
       if (exclusive) chosen.push(exclusive);
     }
-    if (mode === "level" && !game.items.blade && !game.items.anchor) {
+    if (!milestone && mode === "level" && !game.items.blade && !game.items.anchor) {
       const core = pool.find((item) => item.id === (chance(.5) ? "blade" : "anchor"));
       if (core) chosen.push(core);
     }
-    const progressing = pool.filter((item) => game.items[item.id]).sort((a, b) => (game.items[b.id] / b.max) - (game.items[a.id] / a.max));
+    const levels = milestone ? game.statTalents : game.items;
+    const progressing = pool.filter((item) => levels[item.id]).sort((a, b) => (levels[b.id] / b.max) - (levels[a.id] / a.max));
     if (progressing.length && !chosen.includes(progressing[0])) chosen.push(progressing[0]);
-    const complement = pool.find((item) => !chosen.includes(item) && FUSIONS.some((fusion) => !game.fusions[fusion.id] && fusion.req[item.id] && Object.keys(fusion.req).some((id) => id !== item.id && game.items[id])));
+    const complement = milestone ? null : pool.find((item) => !chosen.includes(item) && FUSIONS.some((fusion) => !game.fusions[fusion.id] && fusion.req[item.id] && Object.keys(fusion.req).some((id) => id !== item.id && game.items[id])));
     if (complement) chosen.push(complement);
     while (chosen.length < 3 && pool.length) {
       const index = Math.floor(Math.random() * pool.length);
@@ -2403,18 +2542,32 @@
       if (!chosen.includes(candidate)) chosen.push(candidate);
     }
     chosen.forEach((item, index) => {
-      const currentLevel = game.items[item.id] || 0;
+      const currentLevel = levels[item.id] || 0;
       const nextLevel = currentLevel + 1;
-      const fusionReady = wouldUnlockFusion(item.id, nextLevel);
-      const recipe = FUSIONS.find((fusion) => !game.fusions[fusion.id] && fusion.req[item.id]);
+      const fusionReady = !milestone && wouldUnlockFusion(item.id, nextLevel);
+      const recipe = milestone ? null : FUSIONS.find((fusion) => !game.fusions[fusion.id] && fusion.req[item.id]);
       const card = document.createElement("button");
-      card.className = `choice-card${fusionReady ? " fusion-ready" : ""}`;
+      card.className = `choice-card${fusionReady ? " fusion-ready" : ""}${milestone ? " relic-card" : ""}`;
       card.style.setProperty("--card-color", item.color);
-      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${item.icon}</span><span class="card-type">${item.type}</span><h3>${item.name}</h3><p>${item.desc(nextLevel)}</p><span class="item-level">LV.${currentLevel} → LV.${nextLevel}</span><strong>${fusionReady ? "选择后立即完成融合！" : recipe ? `合成线索：${recipe.name}` : item.detail}</strong>`;
-      card.addEventListener("click", () => chooseItem(item));
+      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${item.icon}</span><span class="card-type">${item.type}</span><h3>${item.name}</h3><p>${item.desc(nextLevel)}</p><span class="item-level">LV.${currentLevel} → LV.${nextLevel}</span><strong>${milestone ? "仅在每 3 级出现" : fusionReady ? "选择后立即完成融合！" : recipe ? `合成线索：${recipe.name}` : item.detail}</strong>`;
+      card.addEventListener("click", () => milestone ? chooseStatTalent(item) : chooseItem(item));
       ui.choiceCards.appendChild(card);
     });
     ui.choice.classList.remove("hidden");
+  }
+
+  function chooseStatTalent(item) {
+    const newLevel = (game.statTalents[item.id] || 0) + 1;
+    game.statTalents[item.id] = newLevel;
+    item.apply(newLevel);
+    game.upgrades.push(`${item.name} LV.${newLevel}`);
+    ui.choice.classList.add("hidden");
+    game.pendingChoice = null;
+    state = "playing";
+    showToast(`三级属性 · ${item.name}`, item.desc(newLevel));
+    renderBuildDock();
+    sound.level();
+    canvas.focus();
   }
 
   function chooseItem(item) {
@@ -2468,8 +2621,10 @@
     const fused = FUSIONS.filter((fusion) => game.fusions[fusion.id]);
     const relics = RELICS.filter((relic) => game.relics[relic.id]);
     const comboCards = COMBO_PLANTS.filter((combo) => game.comboCards[combo.id]);
+    const statTalents = STAT_TALENTS.filter((item) => game.statTalents[item.id]);
+    const merchantItems = MERCHANT_ITEMS.filter((item) => game.merchantOwned[item.id] && item.id !== "shovel");
     const weaponIcon = game.weapon === "wand" ? "✧" : game.weapon === "rail" ? "━" : game.weapon === "shotgun" ? "≋" : "▸";
-    ui.buildItems.innerHTML = `<span class="build-item fused" title="主武器：${WEAPONS[game.weapon].name}" style="--item-color:#df7898">${weaponIcon}<b>W</b></span>` + relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`).join("") + comboCards.map((combo) => `<span class="build-item fused" title="组合卡：${combo.name}" style="--item-color:${combo.color}">${combo.icon}<b>卡</b></span>`).join("") + owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`).join("") + fused.map((fusion) => `<span class="build-item fused" title="融合：${fusion.name}">${fusion.icon}<b>★</b></span>`).join("");
+    ui.buildItems.innerHTML = `<span class="build-item fused" title="主武器：${WEAPONS[game.weapon].name}" style="--item-color:#df7898">${weaponIcon}<b>W</b></span>` + relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`).join("") + merchantItems.map((item) => `<span class="build-item" title="商店：${item.name}" style="--item-color:#f0c47c">${item.icon}<b>商</b></span>`).join("") + statTalents.map((item) => `<span class="build-item" title="属性：${item.name} LV.${game.statTalents[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.statTalents[item.id]}</b></span>`).join("") + comboCards.map((combo) => `<span class="build-item fused" title="组合卡：${combo.name}" style="--item-color:${combo.color}">${combo.icon}<b>卡</b></span>`).join("") + owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`).join("") + fused.map((fusion) => `<span class="build-item fused" title="融合：${fusion.name}">${fusion.icon}<b>★</b></span>`).join("");
   }
 
   function renderCharacterDetail() {
@@ -2554,7 +2709,69 @@
       return;
     }
     game.selectedSeed = index;
+    game.selectedTool = null;
     document.querySelectorAll(".seed-card").forEach((el, i) => el.classList.toggle("active", i === index));
+    updateActiveToolUi();
+  }
+
+  function selectActiveTool(id) {
+    if (!game || !game.activeTools[id]) return;
+    game.selectedTool = id;
+    document.querySelectorAll(".seed-card").forEach((el) => el.classList.remove("active"));
+    updateActiveToolUi();
+  }
+
+  function hotbarOptions() {
+    if (!game) return [];
+    const options = game.carriedSeeds.map((index) => ({ kind: "seed", id: index }));
+    if ((game.activeTools.shovel || 0) > 0) options.push({ kind: "tool", id: "shovel" });
+    return options;
+  }
+
+  function cycleHotbar(direction) {
+    const options = hotbarOptions();
+    if (!options.length) return;
+    let current = options.findIndex((option) => game.selectedTool ? option.kind === "tool" && option.id === game.selectedTool : option.kind === "seed" && option.id === game.selectedSeed);
+    if (current < 0) current = 0;
+    const next = options[(current + direction + options.length) % options.length];
+    if (next.kind === "seed") selectSeed(next.id);
+    else selectActiveTool(next.id);
+    sound.tone(350 + ((current + direction + options.length) % options.length) * 22, .035, "triangle", .015, 55);
+  }
+
+  function updateActiveToolUi() {
+    if (!game || !ui.activeTool) return;
+    const durability = game.activeTools.shovel || 0;
+    ui.activeTool.classList.toggle("hidden", durability <= 0);
+    ui.activeTool.classList.toggle("selected", game.selectedTool === "shovel");
+    ui.activeToolName.textContent = game.selectedTool === "shovel" ? "折叠开荒铲 · 已选中" : "折叠开荒铲";
+    ui.activeToolCount.textContent = `${durability} / 5`;
+  }
+
+  function digPlot() {
+    if (!game || game.selectedTool !== "shovel" || (game.activeTools.shovel || 0) <= 0) return false;
+    const x = clamp(game.player.x, 65, WORLD_W - 65);
+    const y = clamp(game.player.y, 65, WORLD_H - 65);
+    if (hasTerrain("bridge") && x > 1090 && x < 1290) {
+      showToast("这里挖不到土", "河床和桥面无法开垦，请移动到岸边");
+      return false;
+    }
+    if (game.plots.some((plot) => Math.hypot(plot.x - x, plot.y - y) < 78)) {
+      showToast("田块过于密集", "离现有田块更远一点再使用开荒铲");
+      return false;
+    }
+    const zone = FIELD_ZONES.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+    game.plots.push(makePlot(x, y, zone.id, true));
+    game.activeTools.shovel--;
+    ringEffect(x, y, "#e7b979", 92);
+    burst(x, y, "#9b6c49", 16, 110);
+    floatText(x, y - 34, `开垦新田 · 耐久 ${game.activeTools.shovel}`, "#ffe0a4", 12);
+    sound.tone(125, .12, "square", .04, -35);
+    if (game.activeTools.shovel <= 0) {
+      showToast("折叠开荒铲耗尽", "五块新田已经成为本轮永久地形");
+      selectSeed(game.selectedSeed);
+    } else updateActiveToolUi();
+    return true;
   }
 
   function updateMetaDisplay() {
@@ -2595,6 +2812,10 @@
     ui.water.textContent = game.water;
     ui.coins.textContent = game.coins;
     ui.dash.style.transform = `scaleX(${clamp(1 - p.dashCooldown / p.dashMax, 0, 1)})`;
+    const dashReady = p.dashCooldown <= 0;
+    ui.dashLabel.textContent = "冲刺";
+    ui.dashState.textContent = dashReady ? "就绪" : `${p.dashCooldown.toFixed(1)}s`;
+    ui.dashState.closest(".dash-status").classList.toggle("ready", dashReady);
     const overclockActive = game.overclockTime > 0;
     ui.overclockFill.style.width = `${overclockActive ? 100 : game.overclock}%`;
     ui.overclockText.textContent = overclockActive ? `${game.overclockTime.toFixed(1)}s` : `${Math.floor(game.overclock)}%`;
@@ -2605,6 +2826,7 @@
     ui.skillFill.style.transform = `scaleX(${clamp(1 - p.skillCooldown / p.skillMax, 0, 1)})`;
     ui.skillFill.closest(".skill-status").classList.toggle("ready", p.skillCooldown <= 0);
     ui.skillFill.closest(".skill-status").classList.toggle("cooling", p.skillCooldown > 0);
+    ui.skillReady.textContent = p.skillCooldown <= 0 ? "就绪 · Q" : `${p.skillCooldown.toFixed(1)}s`;
     const hasAnchor = Boolean(game.items.anchor);
     ui.stance.classList.toggle("hidden", !hasAnchor);
     if (hasAnchor) {
@@ -2616,6 +2838,7 @@
     ui.combo.classList.toggle("hidden", game.combo < 2);
     ui.combo.querySelector("span").textContent = game.combo;
     game.seeds.forEach((value, i) => { $(`seed-${i}`).textContent = value; });
+    updateActiveToolUi();
 
     const night = game.phase === "night";
     const resting = game.phase === "rest";
@@ -2626,6 +2849,10 @@
       ui.clockText.textContent = game.day === FINAL_DAY ? "决 战" : "首 领";
       ui.phaseFill.style.width = `${clamp(game.boss.hp / game.boss.maxHp, 0, 1) * 100}%`;
       ui.threat.textContent = `${bossDisplayName(game.boss)} · ${Math.ceil(Math.max(0, game.boss.hp))} HP`;
+    } else if (resting) {
+      ui.clockText.textContent = "不限时";
+      ui.phaseFill.style.width = "100%";
+      ui.threat.textContent = "安全休整 · 切换种子、采购、播种，准备好后按 F 入夜";
     } else {
       ui.clockText.textContent = formatTime(dur - game.phaseTime);
       ui.phaseFill.style.width = `${clamp(1 - game.phaseTime / dur, 0, 1) * 100}%`;
@@ -2806,6 +3033,24 @@
       ctx.fillStyle = "#e0d6e7"; ctx.font = "7px 'Microsoft YaHei'"; ctx.fillText(zone.copy, center.x, farmY + 5);
     }
     for (const plot of game.plots) drawPlot(plot);
+    drawMerchantNpc();
+    ctx.restore();
+  }
+
+  function drawMerchantNpc() {
+    const home = zonePosition("home");
+    const x = home.x + 155, y = home.y + 118;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = "#51445f"; ctx.beginPath(); ctx.ellipse(0, 14, 26, 12, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#f5c47d"; ctx.fillRect(-15, -20, 30, 35);
+    ctx.fillStyle = "#7a5d43"; ctx.beginPath(); ctx.arc(0, -28, 18, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#dd6e62"; ctx.beginPath(); ctx.moveTo(-23, -34); ctx.lineTo(23, -34); ctx.lineTo(12, -48); ctx.lineTo(-12, -48); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-6, -29, 3, 0, TAU); ctx.arc(6, -29, 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#3d3043"; ctx.beginPath(); ctx.arc(-6, -29, 1.4, 0, TAU); ctx.arc(6, -29, 1.4, 0, TAU); ctx.fill();
+    ctx.fillStyle = game.phase === "rest" ? "#fff7c2" : "#e6dce9"; ctx.strokeStyle = "#50445f"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(-48, -76, 96, 22, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#40354c"; ctx.textAlign = "center"; ctx.font = "900 9px 'Microsoft YaHei'";
+    ctx.fillText(game.phase === "rest" ? "阿栓商店营业中" : "阿栓 · 休整见", 0, -62);
     ctx.restore();
   }
 
@@ -2875,16 +3120,32 @@
         }
         if (plot.hybrid) {
           const hybrid = HYBRIDS.find((entry) => entry.id === plot.hybrid);
+          const left = CROP_TYPES[hybrid.pair[0]], right = CROP_TYPES[hybrid.pair[1]];
+          ctx.fillStyle = left.color; drawCropFruit(left.id, -9, -31 * scale, 8 + ratio * 3);
+          ctx.fillStyle = right.color; drawCropFruit(right.id, 9, -31 * scale, 8 + ratio * 3);
           ctx.strokeStyle = hybrid.color; ctx.lineWidth = 3; ctx.setLineDash([4, 4]);
-          ctx.beginPath(); ctx.arc(sway * .5, -30 * scale, 20 + Math.sin(plot.sway * 4) * 2, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-          ctx.fillStyle = hybrid.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText("杂交", 0, -50 * scale);
+          ctx.beginPath(); ctx.moveTo(-20, -31 * scale); ctx.lineTo(0, -47 * scale); ctx.lineTo(20, -31 * scale); ctx.lineTo(0, -15 * scale); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = "#30273a"; ctx.beginPath(); ctx.roundRect(-32, -64 * scale, 64, 14, 6); ctx.fill();
+          ctx.fillStyle = hybrid.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`杂交 · ${hybrid.name}`, 0, -54 * scale);
+          if (plot.state === "ready") { ctx.fillStyle = "#fff"; ctx.font = "900 6px 'Microsoft YaHei'"; ctx.fillText("E 收获永久属性", 0, -43 * scale); }
         }
         if (plot.comboPlant) {
           const combo = COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant);
-          ctx.strokeStyle = combo.color; ctx.lineWidth = 5; ctx.setLineDash([9, 4]);
-          ctx.beginPath(); ctx.arc(sway * .5, -30 * scale, 26 + Math.sin(plot.sway * 5) * 3, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-          ctx.fillStyle = combo.color; ctx.font = "900 14px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(combo.icon, 0, -55 * scale);
-          ctx.font = "900 7px 'Microsoft YaHei'"; ctx.fillText(combo.name, 0, -68 * scale);
+          ctx.fillStyle = "#44384f"; ctx.strokeStyle = combo.color; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.roundRect(-29, -54 * scale, 58, 40, 10); ctx.fill(); ctx.stroke();
+          if (combo.id === "peacannon") {
+            ctx.fillStyle = combo.color; ctx.fillRect(-22, -48 * scale, 17, 7); ctx.fillRect(5, -48 * scale, 17, 7);
+            ctx.beginPath(); ctx.arc(-12, -31 * scale, 9, 0, TAU); ctx.arc(12, -31 * scale, 9, 0, TAU); ctx.fill();
+          } else if (combo.id === "solarforge") {
+            ctx.fillStyle = combo.color; ctx.beginPath(); ctx.arc(0, -34 * scale, 14, 0, TAU); ctx.fill();
+            ctx.strokeStyle = "#fff4a8"; ctx.lineWidth = 3; for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 17, -34 * scale + Math.sin(a) * 17); ctx.lineTo(Math.cos(a) * 24, -34 * scale + Math.sin(a) * 24); ctx.stroke(); }
+          } else {
+            ctx.fillStyle = "#ff7c68"; ctx.beginPath(); ctx.arc(-9, -34 * scale, 11, 0, TAU); ctx.fill();
+            ctx.fillStyle = "#8ddcff"; ctx.beginPath(); ctx.arc(9, -34 * scale, 11, 0, TAU); ctx.fill();
+          }
+          ctx.fillStyle = "#30273a"; ctx.beginPath(); ctx.roundRect(-38, -76 * scale, 76, 14, 6); ctx.fill();
+          ctx.fillStyle = combo.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`组合 · ${combo.name}`, 0, -66 * scale);
+          if (plot.state === "ready") { ctx.fillStyle = "#fff"; ctx.font = "900 6px 'Microsoft YaHei'"; ctx.fillText("E 收获强化属性", 0, -57 * scale); }
         }
       }
       if (plot.state === "growing") {
@@ -3354,12 +3615,14 @@
     if (key === "e") input.interact = true;
     if (key === "q") input.skill = true;
     if (key === " ") input.dash = true;
-    if (["1", "2", "3", "4", "5", "6"].includes(key)) selectSeed(Number(key) - 1);
+    if (key === "f" && game.phase === "rest") { phaseTransition(); return; }
+    if (["1", "2", "3", "4"].includes(key)) selectSeed(game.carriedSeeds[Number(key) - 1]);
   });
   window.addEventListener("keyup", (event) => input.keys.delete(event.key.toLowerCase()));
   window.addEventListener("blur", () => { input.keys.clear(); input.mouse.down = false; if (state === "playing") { state = "paused"; ui.pause.classList.remove("hidden"); } });
   canvas.addEventListener("mousemove", (event) => Object.assign(input.mouse, pointerPosition(event)));
   canvas.addEventListener("mousedown", (event) => { if (event.button === 0 && state === "playing") { input.mouse.down = true; sound.init(); } });
+  canvas.addEventListener("wheel", (event) => { if (state === "playing") { event.preventDefault(); cycleHotbar(event.deltaY > 0 ? 1 : -1); } }, { passive: false });
   window.addEventListener("mouseup", (event) => { if (event.button === 0) input.mouse.down = false; });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -3373,6 +3636,8 @@
   $("restart-pause-btn").addEventListener("click", startRun);
   $("home-pause-btn").addEventListener("click", goHome);
   $("home-end-btn").addEventListener("click", goHome);
+  ui.merchantRefresh.addEventListener("click", refreshMerchant);
+  ui.restContinue.addEventListener("click", () => { if (game && game.phase === "rest") phaseTransition(); });
   document.querySelectorAll(".seed-card").forEach((button) => button.addEventListener("click", () => selectSeed(Number(button.dataset.seed))));
   document.querySelectorAll(".weapon-card").forEach((button) => {
     button.title = WEAPONS[button.dataset.weapon].copy;
@@ -3391,7 +3656,7 @@
     selectedSeedLoadout.shift();
     selectedSeedLoadout.push(index);
     document.querySelectorAll(".loadout-seed").forEach((entry) => entry.classList.toggle("active", selectedSeedLoadout.includes(Number(entry.dataset.loadoutSeed))));
-    ui.seedLoadoutCount.textContent = `${selectedSeedLoadout.length} / 3`;
+    ui.seedLoadoutCount.textContent = `${selectedSeedLoadout.length} / 4`;
     updateLoadoutAvailability();
     sound.tone(460, .08, "triangle", .035, 100);
   }));
@@ -3411,7 +3676,7 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
-      snapshot: () => game ? ({ day: game.day, phase: game.phase, character: game.character, weapon: game.weapon, carriedSeeds: [...game.carriedSeeds], skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, hp: game.player.hp, water: game.water, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), plots: game.plots.length, growingPlots: game.plots.filter((plot) => plot.state === "growing").length, dryPlots: game.plots.filter((plot) => plot.state === "growing" && plot.wet <= 2).length, hybrids: game.hybridCount, comboPlants: game.comboPlantCount, comboCards: Object.keys(game.comboCards), harvestMomentum: game.harvestMomentum, cropMultiplier: combatCropMultiplier(game.player.attackMode === "melee"), elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, eventPlantDeadline: game.eventPlantDeadline, eventPlantMisses: game.eventPlantMisses, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-3).map((b) => ({ splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
+      snapshot: () => game ? ({ day: game.day, phase: game.phase, phaseTime: game.phaseTime, character: game.character, weapon: game.weapon, carriedSeeds: [...game.carriedSeeds], selectedSeed: game.selectedSeed, selectedTool: game.selectedTool, activeTools: { ...game.activeTools }, skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, level: game.player.level, pendingChoice: game.pendingChoice, damage: game.player.damage, armor: game.player.armor, speed: game.player.speed, dodge: game.player.dodge, crit: game.player.crit, hp: game.player.hp, maxHp: game.player.maxHp, water: game.water, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), plots: game.plots.length, growingPlots: game.plots.filter((plot) => plot.state === "growing").length, dryPlots: game.plots.filter((plot) => plot.state === "growing" && plot.wet <= 2).length, hybrids: game.hybridCount, comboPlants: game.comboPlantCount, comboCards: Object.keys(game.comboCards), comboHarvestStacks: { ...game.comboHarvestStacks }, hybridStatStacks: { ...game.hybridStatStacks }, harvestMomentum: game.harvestMomentum, cropMultiplier: combatCropMultiplier(game.player.attackMode === "melee"), elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), enemyCount: game.enemies.length, boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, nextEventIn: game.eventTimer, merchantRefreshes: game.merchantRefreshes, merchantRefreshCost: 2 + game.merchantRefreshes * 2, merchantStock: [...game.merchantStock], statTalents: { ...game.statTalents }, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-3).map((b) => ({ splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
       readyCrop: (index) => { const plot = game.plots[0]; plot.crop = index; plot.state = "ready"; plot.growth = CROP_TYPES[index].grow; game.player.x = plot.x; game.player.y = plot.y + 100; },
       breakShield: () => { game.player.shield = 8; game.player.hurtCooldown = 0; hurtPlayer(12, game.player.x - 30, game.player.y); },
       summonBoss: (type) => { game.enemies.length = 0; game.boss = null; game.bossSpawned = false; game.phase = "night"; game.day = type === "crowboss" ? 2 : type === "slimeboss" ? 4 : 5; spawnBoss(type); },
@@ -3421,14 +3686,26 @@
       dropChest: () => { game.nightChestDays[game.day] = false; dropRelicChest(game.player.x + 25, game.player.y, game.day); },
       hurtBoss: (ratio) => { if (game.boss) game.boss.hp = game.boss.maxHp * ratio; },
       endRun: () => finishRun(false),
-      eventNow: (id = null) => { if (!id) { game.activeEvent = null; game.eventTime = 0; game.eventTimer = 0; return; } if (game.phase === "rest") game.phase = "day"; game.activeEvent = id; game.eventTime = id === "seedfrenzy" ? 30 : 12; game.eventPlantDeadline = id === "seedfrenzy" ? 3 : 0; game.eventPlantMisses = 0; ui.event.classList.remove("hidden"); ui.event.querySelector("b").textContent = id === "seedfrenzy" ? "种子狂暴" : id; },
+      eventNow: (id = null) => { if (!id) { game.activeEvent = null; game.eventTime = 0; game.eventTimer = 0; return; } if (game.phase === "rest") game.phase = "day"; game.activeEvent = id; game.eventTime = 12; game.eventBannerTime = 4.8; ui.event.classList.remove("hidden"); ui.event.querySelector("b").textContent = id; },
       toRest: () => { game.phase = "day"; game.phaseTime = currentDuration(); game.freezeTimer = 0; update(.02); },
       buySeed: (index) => { game.coins = Math.max(game.coins, 2); buySeed(index); },
       forceHybrid: (hybridId) => { const h = HYBRIDS.find((entry) => entry.id === hybridId); if (!h) return false; const plots = game.plots.filter((plot) => plot.zone === "home").slice(0, 2); clearPlot(plots[0]); clearPlot(plots[1]); plots[0].crop = h.pair[0]; plots[0].state = "ready"; plots[0].growth = CROP_TYPES[h.pair[0]].grow; plots[1].crop = h.pair[1]; plots[1].state = "growing"; plots[1].growth = CROP_TYPES[h.pair[1]].grow; const original = Math.random; Math.random = () => 0; maturePlot(plots[1]); Math.random = original; return plots[1].hybrid; },
       unlockCombo: (comboId) => { const combo = COMBO_PLANTS.find((entry) => entry.id === comboId); if (!combo) return false; meta.achievements[combo.achievement] = Date.now(); storage.save(meta); renderRestShop(); return true; },
       buyCombo: (comboId) => { const combo = COMBO_PLANTS.find((entry) => entry.id === comboId); if (!combo) return false; game.phase = "rest"; game.coins = Math.max(game.coins, combo.cost); buyComboCard(comboId); return Boolean(game.comboCards[comboId]); },
       forceCombo: (comboId) => { const combo = COMBO_PLANTS.find((entry) => entry.id === comboId); if (!combo) return false; game.comboCards[comboId] = true; const plots = game.plots.filter((plot) => plot.zone === "home").slice(0, 2); clearPlot(plots[0]); clearPlot(plots[1]); plots[0].crop = combo.pair[0]; plots[0].state = "ready"; plots[0].growth = CROP_TYPES[combo.pair[0]].grow; plots[1].crop = combo.pair[1]; plots[1].state = "growing"; plots[1].growth = CROP_TYPES[combo.pair[1]].grow; maturePlot(plots[1]); return plots[1].comboPlant; },
-      harvestReady: (index = 0) => { const plot = game.plots[index]; if (!plot || plot.state !== "ready" || plot.comboPlant) return false; harvest(plot); return true; },
+      harvestReady: (index = 0) => { const plot = game.plots[index]; if (!plot || plot.state !== "ready") return false; harvest(plot); return true; },
+      harvestSpecial: (kind, id) => { const made = kind === "combo" ? window.__wildrootDebug.forceCombo(id) : window.__wildrootDebug.forceHybrid(id); if (!made) return false; const index = game.plots.findIndex((plot) => kind === "combo" ? plot.comboPlant === id : plot.hybrid === id); if (index < 0) return false; harvest(game.plots[index]); return true; },
+      availableItemIds: () => ITEMS.filter((item) => itemMatchesLoadout(item)).map((item) => item.id),
+      openChoice: (mode = "milestone") => { state = "playing"; showChoice(mode); return [...ui.choiceCards.querySelectorAll("h3")].map((node) => node.textContent); },
+      chooseStat: (id) => { const item = STAT_TALENTS.find((entry) => entry.id === id); if (!item) return false; chooseStatTalent(item); return true; },
+      refreshShop: () => { game.phase = "rest"; game.coins = Math.max(game.coins, 50); const before = game.coins; refreshMerchant(); return before - game.coins; },
+      buyShop: (id) => { game.phase = "rest"; game.coins = Math.max(game.coins, 50); if (!game.merchantStock.includes(id)) game.merchantStock[0] = id; buyMerchantItem(id); return Boolean(game.merchantOwned[id]); },
+      selectTool: (id = "shovel") => { selectActiveTool(id); return game.selectedTool; },
+      digHere: (x = game.player.x + 120, y = game.player.y + 120) => { game.player.x = x; game.player.y = y; return digPlot(); },
+      wheel: (direction = 1) => { cycleHotbar(direction); return game.selectedTool || game.selectedSeed; },
+      dropRiverXp: () => { dropPickup("xp", 1190, 500, 1); const item = game.pickups.at(-1); return { x: item.x, y: item.y }; },
+      spawnPool: (day = 5) => enemySpawnPool(day),
+      setTerrain: (id = "bridge") => { game.terrainDays[game.day - 1] = id; updateTerrainUi(); return activeTerrainIds(); },
       plantEmpty: (seedIndex = game.selectedSeed) => { const plot = game.plots.find((entry) => entry.state === "empty"); if (!plot) return false; game.seeds[seedIndex] = Math.max(1, game.seeds[seedIndex]); return plantPlot(plot, seedIndex, "调试播种"); },
       dryCrop: (seedIndex = game.selectedSeed) => { const plot = game.plots.find((entry) => entry.state === "empty"); if (!plot) return false; plot.crop = seedIndex; plot.state = "growing"; plot.growth = 0; plot.wet = 0; plot.hp = plot.maxHp; return true; },
       triggerFarmTools: () => { game.autoWaterTimer = 0; game.autoSeedTimer = 0; game.water = Math.max(2, game.water); game.seeds[game.selectedSeed] = Math.max(2, game.seeds[game.selectedSeed]); },

@@ -40,7 +40,7 @@
       <div class="resources">
         <div class="resource water"><span class="resource-icon">💧</span><b id="water-text">4</b><small>灌溉</small></div>
         <div class="resource coin"><span class="resource-icon">◆</span><b id="coin-text">0</b><small>生物质</small></div>
-        <div class="dash-status"><span>冲刺</span><i id="dash-fill"></i><kbd>Space</kbd></div>
+        <div class="dash-status"><span id="dash-label">冲刺</span><b id="dash-state">就绪</b><i id="dash-fill"></i><kbd>Space</kbd></div>
       </div>
 
       <div class="overclock-meter">
@@ -52,6 +52,7 @@
       <div class="skill-status">
         <span id="skill-icon">⌁</span>
         <div><b id="skill-name">丰收编译</b><i><em id="skill-fill"></em></i><small id="skill-copy">催熟附近作物</small></div>
+        <strong id="skill-ready">就绪</strong>
         <kbd>Q</kbd>
       </div>
 
@@ -87,16 +88,23 @@
         </button>
       </div>
 
+      <div id="active-tool" class="active-tool hidden"><span>主动道具</span><b id="active-tool-name">折叠铲</b><em id="active-tool-count">5 / 5</em><small>滚轮切换 · E 使用</small></div>
+
       <div id="context-hint" class="context-hint hidden"><kbd>E</kbd><span>播种火爆辣椒</span></div>
       <div id="ai-speech" class="ai-speech hidden"><b>小芽</b><span>今日也要科学种田！</span></div>
       <div id="random-event" class="random-event hidden"><small>异常天气</small><b>数据雨降临</b><span>附近资源正在被磁化</span></div>
       <div id="mission-card" class="mission-card"><small>末日生存日志</small><b>寻找分散农区</b><span>成熟作物与收获动能决定人物战斗力</span></div>
       <div id="terrain-card" class="terrain-card"><small>今日地形规则</small><b id="terrain-name">可争夺灌溉站</b><span id="terrain-copy">占领后为全图田块补水</span></div>
       <div id="rest-shop" class="rest-shop hidden">
-        <div><small>休整采购 · 种子与组合卡</small><b>组合卡需先完成成就</b></div>
+        <div><small>商店 NPC · 休整不限时</small><b>完成整备后主动进入夜晚</b></div>
         <div id="rest-shop-items"></div>
+        <div class="merchant-shop">
+          <div class="merchant-head"><span><i>商</i><b>废土货郎 · 阿栓</b><small>商品属性完全随机，不保证适配当前构筑</small></span><button id="merchant-refresh">刷新 ◆2</button></div>
+          <div id="merchant-items"></div>
+        </div>
+        <button id="rest-continue" class="rest-continue">准备完成 · 进入夜晚 <kbd>F</kbd></button>
       </div>
-      <div class="controls-hint"><span><kbd>WASD</kbd> 移动</span><span><kbd>鼠标</kbd> 瞄准射击</span><span><kbd>E</kbd> 耕作</span><span><kbd>Q</kbd> AI 技能</span><span><kbd>Space</kbd> 冲刺</span><span><kbd>P</kbd> 暂停</span></div>
+      <div class="controls-hint"><span><kbd>WASD</kbd> 移动</span><span><kbd>鼠标</kbd> 瞄准射击</span><span><kbd>滚轮</kbd> 切种子/道具</span><span><kbd>E</kbd> 耕作/使用</span><span><kbd>Q</kbd> AI 技能</span><span><kbd>Space</kbd> 冲刺</span><span><kbd>P</kbd> 暂停</span></div>
       <button id="sound-btn" class="icon-button" aria-label="切换声音">♪</button>
     </section>
 
@@ -130,12 +138,12 @@
           </div>
         </div>
         <div class="loadout-panel seed-loadout">
-          <span>种子携带槽 <em id="seed-loadout-count">3 / 3</em></span>
+          <span>种子携带槽 <em id="seed-loadout-count">4 / 4</em></span>
           <div>
             <button class="loadout-seed active" data-loadout-seed="0">辣椒</button>
             <button class="loadout-seed active" data-loadout-seed="1">向日葵</button>
             <button class="loadout-seed active" data-loadout-seed="2">豌豆</button>
-            <button class="loadout-seed" data-loadout-seed="3">磁力菇</button>
+            <button class="loadout-seed active" data-loadout-seed="3">磁力菇</button>
             <button class="loadout-seed" data-loadout-seed="4">寒冰菇</button>
             <button class="loadout-seed" data-loadout-seed="5">模仿菇</button>
           </div>
@@ -164,7 +172,7 @@
         <span><i class="tip-night"></i>夜晚：啃根虫、野猪与掠种贼会攻击田地</span>
         <span><i class="tip-crop"></i>成熟：每种作物都能强化战斗</span>
       </div>
-      <p class="version">BUILD 6.1 · 农战共生、组合植株与种子狂暴</p>
+      <p class="version">BUILD 6.2 · 四种子、属性节点与废土商店</p>
     </section>
 
     <section id="story-screen" class="screen story-screen hidden">
