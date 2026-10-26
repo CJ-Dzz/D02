@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#17151e" />
+  <link rel="icon" href="data:," />
+  <title>荒穗计划：AI 娘最后一块田</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="game-shell" aria-label="荒穗计划游戏区域">
+    <canvas id="game" width="1280" height="720" tabindex="0" aria-label="游戏画面"></canvas>
+
+    <section id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-top">
+        <div class="brand-mini">
+          <span>AI-07 ONLINE</span>
+          <b id="phase-label">第 1 日 · 白昼</b>
+        </div>
+        <div class="phase-clock">
+          <div class="clock-row"><span id="phase-icon">☀</span><strong id="clock-text">00:40</strong></div>
+          <div class="phase-track"><i id="phase-fill"></i></div>
+          <small id="threat-label">威胁正在苏醒</small>
+        </div>
+        <div class="score-box">
+          <span>本局收成</span>
+          <strong id="score-text">0</strong>
+        </div>
+      </div>
+
+      <div class="vitals">
+        <div class="portrait"><span>⌁</span><b>AI</b></div>
+        <div class="vital-bars">
+          <div class="bar hp-bar"><i id="hp-fill"></i><span id="hp-text">100 / 100</span></div>
+          <div class="bar xp-bar"><i id="xp-fill"></i><span id="xp-text">LV.1</span></div>
+        </div>
+      </div>
+
+      <div class="resources">
+        <div class="resource water"><span class="resource-icon">💧</span><b id="water-text">4</b><small>灌溉</small></div>
+        <div class="resource coin"><span class="resource-icon">◆</span><b id="coin-text">0</b><small>废金</small></div>
+        <div class="dash-status"><span>冲刺</span><i id="dash-fill"></i><kbd>Space</kbd></div>
+      </div>
+
+      <div class="overclock-meter">
+        <span>爽感超频</span>
+        <div><i id="overclock-fill"></i></div>
+        <b id="overclock-text">0%</b>
+      </div>
+
+      <div class="skill-status">
+        <span id="skill-icon">⌁</span>
+        <div><b id="skill-name">丰收编译</b><i><em id="skill-fill"></em></i><small id="skill-copy">催熟附近作物</small></div>
+        <kbd>Q</kbd>
+      </div>
+
+      <div id="stance-meter" class="stance-meter hidden">
+        <span>扎根蓄力</span><div><i id="stance-fill"></i></div><b id="stance-text">0%</b>
+      </div>
+
+      <div id="combo-display" class="combo-display hidden"><b>×<span>0</span></b><small>连击演算</small></div>
+
+      <div class="build-dock">
+        <span>本轮插件</span>
+        <div id="build-items"><em>等待安装...</em></div>
+      </div>
+
+      <div class="seed-bar" aria-label="种子选择">
+        <button class="seed-card active" data-seed="0">
+          <kbd>1</kbd><span class="seed-glyph ruby">◆</span><b>火爆辣椒</b><small>火焰弹 · 收获横扫一整行</small><em id="seed-0">3</em>
+        </button>
+        <button class="seed-card" data-seed="1">
+          <kbd>2</kbd><span class="seed-glyph sun">●</span><b>向日葵</b><small>暴击光 · 周期产出阳光</small><em id="seed-1">3</em>
+        </button>
+        <button class="seed-card" data-seed="2">
+          <kbd>3</kbd><span class="seed-glyph thorn">✦</span><b>豌豆炮</b><small>穿透弹 · 自动发射豌豆</small><em id="seed-2">3</em>
+        </button>
+        <button class="seed-card" data-seed="3">
+          <kbd>4</kbd><span class="seed-glyph magnet">◉</span><b>磁力菇</b><small>追踪弹 · 吸资源与敌弹</small><em id="seed-3">2</em>
+        </button>
+        <button class="seed-card" data-seed="4">
+          <kbd>5</kbd><span class="seed-glyph mint">❄</span><b>寒冰菇</b><small>寒霜弹 · 收获全屏冻结</small><em id="seed-4">2</em>
+        </button>
+        <button class="seed-card" data-seed="5">
+          <kbd>6</kbd><span class="seed-glyph clone">♊</span><b>模仿菇</b><small>复制弹 · 模仿附近作物</small><em id="seed-5">2</em>
+        </button>
+      </div>
+
+      <div id="context-hint" class="context-hint hidden"><kbd>E</kbd><span>播种火爆辣椒</span></div>
+      <div id="ai-speech" class="ai-speech hidden"><b>小芽</b><span>今日也要科学种田！</span></div>
+      <div id="random-event" class="random-event hidden"><small>异常天气</small><b>数据雨降临</b><span>附近资源正在被磁化</span></div>
+      <div id="mission-card" class="mission-card"><small>末日生存日志</small><b>寻找分散农区</b><span>成熟作物会改造附近弹丸</span></div>
+      <div class="controls-hint"><span><kbd>WASD</kbd> 移动</span><span><kbd>鼠标</kbd> 瞄准射击</span><span><kbd>E</kbd> 耕作</span><span><kbd>Q</kbd> AI 技能</span><span><kbd>Space</kbd> 冲刺</span><span><kbd>P</kbd> 暂停</span></div>
+      <button id="sound-btn" class="icon-button" aria-label="切换声音">♪</button>
+    </section>
+
+    <section id="start-screen" class="screen start-screen">
+      <div class="ai-mascot" aria-hidden="true">
+        <i class="antenna"></i><i class="hair left"></i><i class="hair right"></i>
+        <span class="face"><b>˙ᴗ˙</b></span><em>AI-07</em>
+      </div>
+      <div class="eyebrow">CUTE · CHAOS · COMBO</div>
+      <h1>荒穗计划</h1>
+      <p class="subtitle">AI 娘最后一块田</p>
+      <p class="pitch"><b>小芽 AI-07</b> 与你被留在熄灭后的世界。<br />最后的种子、五个夜晚，以及一块不能失去的田。</p>
+      <div class="character-select" aria-label="选择 AI 娘">
+        <button class="character-card active" data-character="sprout"><i class="mini-ai sprout">⌁</i><span><b>小芽 AI-07</b><small>技能「丰收编译」· 催熟并齐射</small></span><em>均衡</em></button>
+        <button class="character-card" data-character="beat"><i class="mini-ai beat">⚡</i><span><b>霹雳 BEAT-02</b><small>技能「雷暴节拍」· 清场超频</small></span><em>火力</em></button>
+        <button class="character-card" data-character="mochi"><i class="mini-ai mochi">♡</i><span><b>奶泡 MOCHI-11</b><small>技能「泡泡温室」· 护盾生长</small></span><em>支援</em></button>
+      </div>
+      <div id="character-detail" class="character-detail" aria-live="polite">
+        <div><span id="character-detail-icon">⌁</span><b id="character-detail-skill">主动 · 丰收编译</b><em id="character-detail-cd">19 秒</em></div>
+        <p id="character-detail-copy">催熟附近作物，成熟作物同时向敌人齐射。</p>
+        <small id="character-detail-passive">被动：作物光环范围 +18%　定位：射击与种田均衡联动</small>
+      </div>
+      <button id="start-btn" class="primary-button"><span>开始末日生存</span><small>ENTER</small></button>
+      <div class="meta-card">
+        <div><span>历史最佳</span><b id="best-score">0</b></div>
+        <div><span>遗传芽晶</span><b id="meta-crystals">0</b></div>
+        <div><span>完成轮次</span><b id="meta-bonus">0 RUNS</b></div>
+      </div>
+      <div class="meta-lab">
+        <div class="meta-lab-title"><b>末日避难所 · 永久改造</b><span>跨轮次保留 · 六条路线最高 LV.8</span></div>
+        <div class="meta-modules">
+          <button data-meta="compute"><i>⚡</i><span><b>战斗算力</b><small>攻击力 +6% / 级</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="soil"><i>♣</i><span><b>育种算法</b><small>生长 +9%，定期增加初始种子</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="backup"><i>♡</i><span><b>备份协议</b><small>生命 +7，水和护盾提升</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="radar"><i>◉</i><span><b>废土雷达</b><small>吸附范围与稀有掉落提升</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="memory"><i>▣</i><span><b>记忆档案</b><small>经验与结算芽晶提升</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="bond"><i>∞</i><span><b>陪伴协议</b><small>AI 技能更强，冷却更短</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+        </div>
+      </div>
+      <div class="start-tips">
+        <span><i class="tip-day"></i>白昼：狩猎资源，照料作物</span>
+        <span><i class="tip-night"></i>夜晚：害兽会吞噬未收获的田</span>
+        <span><i class="tip-crop"></i>成熟：每种作物都能强化战斗</span>
+      </div>
+      <p class="version">BUILD 5.0 · 遗物、近战与扎根协议</p>
+    </section>
+
+    <section id="story-screen" class="screen story-screen hidden">
+      <div class="story-sky"><i></i><i></i><i></i></div>
+      <div class="story-panel">
+        <span id="story-chapter">序章 · 熄灯之后</span>
+        <h2 id="story-title">世界结束时，我们选了种田</h2>
+        <div class="story-speaker"><i id="story-avatar">⌁</i><b id="story-speaker">旁白</b></div>
+        <p id="story-text">末日第 417 天，城市电网彻底熄灭。避难所只剩最后一袋种子，和一名仍在运行的农务 AI。</p>
+        <button id="story-next" class="primary-button"><span>继续</span><small>ENTER</small></button>
+        <button id="story-skip" class="secondary-button">跳过剧情，直接出发</button>
+      </div>
+    </section>
+
+    <section id="choice-screen" class="screen choice-screen hidden">
+      <div class="eyebrow" id="choice-eyebrow">成长突变</div>
+      <h2 id="choice-title">选择一项培育方向</h2>
+      <p id="choice-subtitle">选择后立即生效，本轮无法撤销</p>
+      <div id="choice-cards" class="choice-cards"></div>
+    </section>
+
+    <section id="pause-screen" class="screen pause-screen hidden">
+      <div class="pause-mark">Ⅱ</div>
+      <h2>播种暂停</h2>
+      <p>田里的时间也停下了。</p>
+      <button id="resume-btn" class="primary-button"><span>继续</span><small>P</small></button>
+      <button id="restart-pause-btn" class="secondary-button">重新开始本轮</button>
+      <button id="home-pause-btn" class="secondary-button">返回主页面与实验室</button>
+    </section>
+
+    <section id="end-screen" class="screen end-screen hidden">
+      <div id="end-badge" class="end-badge">本轮终止</div>
+      <h2 id="end-title">田野沉寂了</h2>
+      <p id="end-copy">种子会记住这一次失败。</p>
+      <div class="run-stats">
+        <div><span>总收成</span><b id="end-score">0</b></div>
+        <div><span>击败害兽</span><b id="end-kills">0</b></div>
+        <div><span>收获作物</span><b id="end-crops">0</b></div>
+        <div><span>获得芽晶</span><b id="end-crystals">+0</b></div>
+      </div>
+      <div id="build-summary" class="build-summary"></div>
+      <button id="restart-btn" class="primary-button"><span>带着经验重来</span><small>R</small></button>
+      <button id="home-end-btn" class="secondary-button">返回主页面 · 使用芽晶</button>
+    </section>
+
+    <section id="boss-intro" class="boss-intro hidden">
+      <div class="boss-scan"><i id="boss-icon">◆</i></div>
+      <span>高危生命体接近</span>
+      <h2 id="boss-name">乱码鸦王</h2>
+      <p id="boss-warning">锁定俯冲路径，观察地面预警</p>
+    </section>
+
+    <section id="fusion-banner" class="fusion-banner hidden">
+      <div class="fusion-burst">✦</div>
+      <span>插件融合完成</span>
+      <h2 id="fusion-title">超辣链式反应</h2>
+      <p id="fusion-copy">辣椒燃烧芯 × 弹射孢子</p>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
+
