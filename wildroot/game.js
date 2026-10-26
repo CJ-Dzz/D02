@@ -26,7 +26,9 @@
     stance: $("stance-meter"), stanceFill: $("stance-fill"), stanceText: $("stance-text"),
     characterDetailIcon: $("character-detail-icon"), characterDetailSkill: $("character-detail-skill"), characterDetailCd: $("character-detail-cd"), characterDetailCopy: $("character-detail-copy"), characterDetailPassive: $("character-detail-passive"),
     storyChapter: $("story-chapter"), storyTitle: $("story-title"), storyText: $("story-text"), storySpeaker: $("story-speaker"), storyAvatar: $("story-avatar"),
-    bossName: $("boss-name"), bossIcon: $("boss-icon"), bossWarning: $("boss-warning")
+    bossName: $("boss-name"), bossIcon: $("boss-icon"), bossWarning: $("boss-warning"),
+    terrainCard: $("terrain-card"), terrainName: $("terrain-name"), terrainCopy: $("terrain-copy"), restShop: $("rest-shop"), restShopItems: $("rest-shop-items"),
+    codex: $("codex-screen"), codexTabs: $("codex-tabs"), codexGrid: $("codex-grid"), codexProgress: $("codex-progress"), seedLoadoutCount: $("seed-loadout-count")
   };
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -56,6 +58,7 @@
   let meta = storage.load();
   meta.modules = Object.assign({ compute: 0, soil: 0, backup: 0, radar: 0, memory: 0, bond: 0 }, meta.modules || {});
   meta.runs = meta.runs || 0;
+  meta.discoveries = meta.discoveries || {};
 
   class SoundEngine {
     constructor() { this.context = null; this.enabled = true; this.bgmClock = 0; this.bgmStep = 0; }
@@ -114,11 +117,20 @@
   };
 
   const CHARACTERS = {
-    sprout: { name: "小芽", code: "AI-07", color: "#9b84d4", body: "#ff87ad", damage: 1, fire: 1, growth: 1, shield: 0, aura: 1.18, skill: "丰收编译", skillIcon: "⌁", skillCopy: "催熟附近作物并发射种子齐射", skillDetail: "催熟 560 范围内作物 58%；每株成熟作物向目标发射 5 枚穿透种子。附近无作物时返还六种种子。", passive: "作物战斗光环范围 +18%", role: "射击与种田均衡联动", skillCd: 19, line: "均衡演算完成。让作物和枪一起上班！" },
-    beat: { name: "霹雳", code: "BEAT-02", color: "#ef6e83", body: "#ffb24f", damage: 1.12, fire: .9, growth: .9, shield: 0, aura: 1, skill: "雷暴节拍", skillIcon: "⚡", skillCopy: "雷击附近敌人并进入强制超频", skillDetail: "雷击 500 范围内所有敌人，并强制超频约 6.5 秒；适合高频射击与扎根炮台。", passive: "基础伤害 +12%，射击间隔 -10%", role: "爆发火力，作物成长稍慢", skillCd: 18, line: "节拍已对齐。接下来每一拍都是暴击！" },
-    mochi: { name: "奶泡", code: "MOCHI-11", color: "#61c9ad", body: "#86d9d0", damage: .92, fire: 1, growth: 1.25, shield: 20, aura: 1.08, skill: "泡泡温室", skillIcon: "♡", skillCopy: "生成护盾并灌溉所有作物", skillDetail: "获得 28 护盾并治疗 14 点生命；灌溉所有作物、推进 22% 生长，并消除身边敌弹。", passive: "作物生长 +25%，初始护盾 +20", role: "稳健守田与近战续航", skillCd: 22, line: "软乎乎地种田，硬邦邦地打虫！" }
+    sprout: { name: "小芽", code: "AI-07", color: "#9b84d4", body: "#ff87ad", damage: 1, fire: 1, growth: 1, shield: 0, aura: 1.18, skill: "丰收编译", skillIcon: "⌁", skillCopy: "催熟附近作物并发射种子齐射", skillDetail: "催熟 560 范围内作物 58%；每株成熟作物向目标发射 5 枚穿透种子。附近无作物时返还携带种子。", passive: "作物战斗光环范围 +18%", role: "射击与种田均衡联动", exclusive: "递归丰收指令", skillCd: 19, line: "均衡演算完成。让作物和枪一起上班！" },
+    beat: { name: "霹雳", code: "BEAT-02", color: "#ef6e83", body: "#ffb24f", damage: 1.12, fire: .9, growth: .9, shield: 0, aura: 1, skill: "雷暴节拍", skillIcon: "⚡", skillCopy: "雷击附近敌人并进入强制超频", skillDetail: "雷击 500 范围内所有敌人，并强制超频约 6.5 秒；适合高频射击与扎根炮台。", passive: "基础伤害 +12%，射击间隔 -10%", role: "爆发火力，作物成长稍慢", exclusive: "安可超频模块", skillCd: 18, line: "节拍已对齐。接下来每一拍都是暴击！" },
+    mochi: { name: "奶泡", code: "MOCHI-11", color: "#61c9ad", body: "#86d9d0", damage: .92, fire: 1, growth: 1.25, shield: 20, aura: 1.08, skill: "泡泡温室", skillIcon: "♡", skillCopy: "生成护盾并灌溉所有作物", skillDetail: "获得 28 护盾并治疗 14 点生命；灌溉所有作物、推进 22% 生长，并消除身边敌弹。", passive: "作物生长 +25%，初始护盾 +20", role: "稳健守田与近战续航", exclusive: "软体温室协议", skillCd: 22, line: "软乎乎地种田，硬邦邦地打虫！" }
   };
   let selectedCharacter = "sprout";
+  let selectedWeapon = "rifle";
+  let selectedSeedLoadout = [0, 1, 2];
+
+  const WEAPONS = {
+    rifle: { name: "脉冲步枪", tag: "均衡连射", copy: "射速、射程与伤害均衡，适合所有作物光环。", damage: 1, fire: 1, speed: 1, size: 1, shots: 1, spread: 0, life: 1.25, pierce: 0, homing: 0, splash: 0 },
+    shotgun: { name: "孢子霰弹枪", tag: "近距多弹", copy: "一次发射 5 枚孢子，射程较短，贴近目标时爆发极高。", damage: .62, fire: 1.55, speed: .86, size: 1.12, shots: 5, spread: .52, life: .7, pierce: 0, homing: 0, splash: 0 },
+    rail: { name: "根系轨道枪", tag: "慢射贯穿", copy: "单发威力高且自带 3 次穿透，射速较慢，适合扎根和暴击。", damage: 2.55, fire: 2.35, speed: 1.35, size: 1.55, shots: 1, spread: 0, life: 1.6, pierce: 3, homing: 0, splash: 0, crit: .05 },
+    wand: { name: "共生法杖", tag: "追踪法球", copy: "发射缓慢追踪法球，作物光环效果提高，命中产生小范围魔力波。", damage: 1.15, fire: 1.38, speed: .68, size: 1.7, shots: 1, spread: 0, life: 2.1, pierce: 0, homing: 7, splash: 22, aura: 1.18 }
+  };
 
   const CROP_TYPES = [
     { id: "pepper", name: "火爆辣椒", color: "#ff6755", dark: "#9d342d", grow: 14, glyph: "◆", aura: "火焰爆破弹", passive: "收获横扫整行" },
@@ -136,19 +148,60 @@
     { id: "crater", name: "陨坑湿地", x: 1630, y: 1110, color: "#8ee5c6", grow: 1.1, yield: 1.15, copy: "作物更耐啃食" }
   ];
 
+  const TERRAIN_RULES = {
+    bridge: { name: "断桥田", copy: "中央裂谷只留下三处窄桥，跨区救田需要规划路线。", color: "#d58b6b" },
+    greenhouse: { name: "移动温室", copy: "破碎温室会沿轨道移动，成熟光环和田块位置随之改变。", color: "#e6b75f" },
+    blackout: { name: "夜间停电区", copy: "入夜后视野收缩；成熟向日葵会形成照明安全区。", color: "#786aa0" },
+    irrigation: { name: "可争夺灌溉站", copy: "靠近中央泵站完成占领，可灌溉全图并获得湿度恢复。", color: "#55b9a1" },
+    finale: { name: "末日复合地形", copy: "第五天会同时启用两条本轮出现过的地形规则。", color: "#e56f90" }
+  };
+
+  const HYBRIDS = [
+    { id: "sunpepper", pair: [0, 1], name: "日灼辣椒", copy: "收获时先治疗护盾，再释放高暴击灼热冲击。", color: "#ffb953" },
+    { id: "steampepper", pair: [0, 4], name: "蒸汽冰椒", copy: "爆炸同时冻结，形成冷热交替的控制带。", color: "#f08da1" },
+    { id: "prismpea", pair: [1, 2], name: "棱光豌豆", copy: "自动射击有更高暴击，并在命中后分出光弹。", color: "#d8dd68" },
+    { id: "railpea", pair: [2, 3], name: "磁轨豌豆", copy: "自动弹获得强追踪和额外穿透。", color: "#64d4b9" },
+    { id: "mirrorfrost", pair: [4, 5], name: "镜霜双生菇", copy: "冻结结束时复制一次较弱的碎冰冲击。", color: "#a9b9f5" },
+    { id: "twinsun", pair: [1, 5], name: "双生日葵", copy: "更快产出阳光，收获时延长超频窗口。", color: "#f3cf79" }
+  ];
+
   const ENEMY_DATA = {
-    mite: { hp: 30, speed: 78, damage: 9, radius: 14, xp: 9, color: "#be6049" },
+    mite: { hp: 30, speed: 78, damage: 9, radius: 14, xp: 9, color: "#be6049", attacksCrops: true },
     spitter: { hp: 48, speed: 52, damage: 8, radius: 17, xp: 14, color: "#9872a8" },
-    boar: { hp: 105, speed: 57, damage: 16, radius: 22, xp: 23, color: "#7f5747" },
+    boar: { hp: 105, speed: 57, damage: 16, radius: 22, xp: 23, color: "#7f5747", attacksCrops: true },
     wasp: { hp: 38, speed: 112, damage: 11, radius: 13, xp: 13, color: "#e6b854" },
     leech: { hp: 72, speed: 67, damage: 12, radius: 18, xp: 18, color: "#7aa55c" },
     bloater: { hp: 165, speed: 38, damage: 19, radius: 27, xp: 32, color: "#cf7996" },
-    thief: { hp: 82, speed: 105, damage: 8, radius: 17, xp: 28, color: "#e58e54" },
+    thief: { hp: 82, speed: 105, damage: 8, radius: 17, xp: 28, color: "#e58e54", attacksCrops: true },
     healer: { hp: 96, speed: 45, damage: 7, radius: 20, xp: 30, color: "#72c58d" },
     glitch: { hp: 68, speed: 78, damage: 13, radius: 18, xp: 24, color: "#70b7e8" },
     crowboss: { hp: 3200, speed: 96, damage: 21, radius: 43, xp: 220, color: "#584c78", bossName: "乱码鸦王" },
     slimeboss: { hp: 6200, speed: 55, damage: 25, radius: 56, xp: 340, color: "#5ea887", bossName: "缓存史莱姆" },
     boss: { hp: 11200, speed: 51, damage: 29, radius: 61, xp: 520, color: "#76517e", bossName: "枯穗暴君" }
+  };
+  const ENEMY_NAMES = { mite: "啃根虫", spitter: "吐籽怪", boar: "冲撞野猪", wasp: "飞刺蜂", leech: "吸能蛭", bloater: "臃肿孢体", thief: "掠种贼", healer: "修复者", glitch: "故障兽" };
+
+  const ELITE_AFFIXES = [
+    { id: "frenzy", name: "狂暴", icon: "⚡", copy: "移动速度 +35%，伤害 +15%。", color: "#ff776d", apply: (e) => { e.speed *= 1.35; e.damage *= 1.15; } },
+    { id: "armored", name: "装甲", icon: "⬡", copy: "生命 +80%，移动速度 -14%。", color: "#b4a99c", apply: (e) => { e.hp *= 1.8; e.maxHp = e.hp; e.speed *= .86; } },
+    { id: "splitting", name: "分裂", icon: "✣", copy: "死亡时分裂出两只啃根虫。", color: "#d89bf0", apply: () => {} },
+    { id: "leeching", name: "虹吸", icon: "♥", copy: "命中玩家会恢复自身生命。", color: "#eb6d91", apply: () => {} },
+    { id: "blight", name: "腐田", icon: "♣", copy: "极少数获得攻击作物资格的精英。", color: "#7fc66b", apply: (e) => { e.damage *= 1.18; } }
+  ];
+
+  const BOSS_VARIANTS = {
+    crowboss: [
+      { id: "storm", name: "暴风羽冠", copy: "羽弹更多、飞行更快。", hp: 1, speed: 1.18, shots: 2, skill: .9, summons: 0 },
+      { id: "iron", name: "铁喙协议", copy: "生命和碰撞伤害更高，弹幕略慢。", hp: 1.32, speed: .92, damage: 1.25, shots: 0, skill: 1.08, summons: 1 }
+    ],
+    slimeboss: [
+      { id: "acid", name: "强酸缓存", copy: "腐蚀区更大，技能频率更高。", hp: 1.08, speed: 1, hazard: 1.28, skill: .82, summons: 0 },
+      { id: "colony", name: "群落备份", copy: "召唤更多吸能蛭，并周期性分裂。", hp: 1.18, speed: .95, hazard: 1, skill: 1.05, summons: 3 }
+    ],
+    boss: [
+      { id: "eclipse", name: "日蚀核心", copy: "战斗进入停电状态，年轮频率提高。", hp: 1.1, speed: 1.08, skill: .82, summons: 1, blackout: true },
+      { id: "rootlord", name: "噬田根冠", copy: "少数能直接腐蚀作物的首领变体。", hp: 1.25, speed: .94, skill: .95, summons: 1, cropHazard: true }
+    ]
   };
 
   let state = "start";
@@ -162,6 +215,34 @@
     tone: i % 3
   }));
 
+  function shuffled(values) {
+    const copy = [...values];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function createTerrainSchedule() {
+    const firstFour = shuffled(["bridge", "greenhouse", "blackout", "irrigation"]);
+    return { days: [...firstFour, "finale"], finale: shuffled(firstFour).slice(0, 2) };
+  }
+
+  function activeTerrainIds() {
+    if (!game) return [];
+    const id = game.terrainDays[game.day - 1];
+    return id === "finale" ? game.finalTerrainRules : [id];
+  }
+
+  function hasTerrain(id) { return activeTerrainIds().includes(id); }
+
+  function terrainLabel() {
+    const ids = activeTerrainIds();
+    if (ids.length > 1) return { name: ids.map((id) => TERRAIN_RULES[id].name).join(" + "), copy: ids.map((id) => TERRAIN_RULES[id].copy).join(" ") };
+    return TERRAIN_RULES[ids[0]] || TERRAIN_RULES.irrigation;
+  }
+
   function resetGame() {
     const computeLevel = meta.modules.compute;
     const soilLevel = meta.modules.soil;
@@ -170,18 +251,23 @@
     const memoryLevel = meta.modules.memory;
     const bondLevel = meta.modules.bond;
     const character = CHARACTERS[selectedCharacter];
+    const weapon = WEAPONS[selectedWeapon];
+    const terrainSchedule = createTerrainSchedule();
+    const startingSeeds = CROP_TYPES.map((_, index) => selectedSeedLoadout.includes(index) ? 3 + Math.floor(soilLevel / 2) : 0);
     game = {
       character: selectedCharacter,
+      weapon: selectedWeapon,
+      carriedSeeds: [...selectedSeedLoadout],
       elapsed: 0,
       phase: "day",
       phaseTime: 0,
       day: 1,
       spawnTimer: 1.2,
       score: 0,
-      coins: 0,
+      coins: 4,
       water: 5 + backupLevel,
-      seeds: [3, 3, 3, 2, 2, 2].map((seed) => seed + Math.floor(soilLevel / 2)),
-      selectedSeed: 0,
+      seeds: startingSeeds,
+      selectedSeed: selectedSeedLoadout[0],
       kills: 0,
       crops: 0,
       shake: 0,
@@ -192,11 +278,16 @@
       bossIntroTime: 0,
       ended: false,
       threatPulse: 0,
-      upgrades: [],
+      upgrades: [`主武器：${weapon.name}`, `种子槽：${selectedSeedLoadout.map((index) => CROP_TYPES[index].name).join(" / ")}`],
       upgradeCounts: {},
       items: {},
       fusions: {},
       fusionCount: 0,
+      hybridCount: 0,
+      terrainDays: terrainSchedule.days,
+      finalTerrainRules: terrainSchedule.finale,
+      irrigation: { x: WORLD_W / 2, y: WORLD_H / 2 - 205, progress: 0, captured: false, contested: false },
+      terrainDamageTimer: 0,
       freezeTimer: 0,
       eventTimer: 20,
       activeEvent: null,
@@ -230,10 +321,10 @@
         maxHp: 100 + backupLevel * 7,
         shield: character.shield + backupLevel * 2,
         speed: 220,
-        damage: 17 * (1 + computeLevel * .06) * character.damage,
-        fireRate: .205 * character.fire,
-        bulletSpeed: 700,
-        bulletSize: 4,
+        damage: 17 * (1 + computeLevel * .06) * character.damage * weapon.damage,
+        fireRate: .205 * character.fire * weapon.fire,
+        bulletSpeed: 700 * weapon.speed,
+        bulletSize: 4 * weapon.size,
         shootTimer: 0,
         dashCooldown: 0,
         dashMax: 2.35,
@@ -245,7 +336,7 @@
         xpNeed: 36,
         multishot: 1,
         pierce: 0,
-        crit: .05,
+        crit: .05 + (weapon.crit || 0),
         magnet: 95 * (1 + radarLevel * .1),
         harvestDamage: 1,
         ricochet: 0,
@@ -263,7 +354,7 @@
       },
       camera: { x: WORLD_W / 2, y: WORLD_H / 2 + 90 },
       cropGrowth: (1 + soilLevel * .09) * character.growth,
-      cropAura: character.aura,
+      cropAura: character.aura * (weapon.aura || 1),
       skillPower: 1 + bondLevel * .09,
       xpGain: 1 + memoryLevel * .08,
       crystalBonus: 1 + memoryLevel * .07,
@@ -290,7 +381,11 @@
     input.interact = false;
     input.dash = false;
     input.skill = false;
-    selectSeed(0);
+    selectSeed(selectedSeedLoadout[0]);
+    updateLoadoutAvailability();
+    updateTerrainUi();
+    renderRestShop();
+    discoverEntry(`weapon:${selectedWeapon}`, 1);
     renderBuildDock();
     updateMetaDisplay();
     updateHud();
@@ -304,6 +399,8 @@
         plots.push({
           x: zone.x - 36 + col * 72,
           y: zone.y - 35 + row * 70,
+          baseX: zone.x - 36 + col * 72,
+          baseY: zone.y - 35 + row * 70,
           radius: 27,
           zone: zone.id,
           growMod: zone.grow,
@@ -320,7 +417,8 @@
           hit: 0,
           sway: rand(0, TAU),
           passiveTimer: rand(1, 3),
-          mimicCrop: null
+          mimicCrop: null,
+          hybrid: null
         });
         }
       }
@@ -373,7 +471,7 @@
     state = "start";
     game = null;
     input.keys.clear(); input.mouse.down = false;
-    [ui.story, ui.choice, ui.pause, ui.end, ui.hud, ui.bossIntro].forEach((element) => element.classList.add("hidden"));
+    [ui.story, ui.choice, ui.pause, ui.end, ui.hud, ui.bossIntro, ui.codex, ui.restShop].forEach((element) => element.classList.add("hidden"));
     ui.start.classList.remove("hidden");
     ui.event.classList.add("hidden");
     updateMetaDisplay();
@@ -388,6 +486,7 @@
     ui.end.classList.remove("victory");
     ui.pause.classList.add("hidden");
     ui.choice.classList.add("hidden");
+    ui.restShop.classList.add("hidden");
     ui.hud.classList.remove("hidden");
     canvas.focus();
     sound.init();
@@ -402,6 +501,7 @@
 
   function currentDuration() {
     if (game.phase === "day") return 38;
+    if (game.phase === "rest") return 24;
     if ([2, 4, FINAL_DAY].includes(game.day)) return 999;
     return 29;
   }
@@ -414,12 +514,27 @@
   }
 
   function isBossType(type) { return type === "boss" || type === "crowboss" || type === "slimeboss"; }
+  function bossDisplayName(enemy) { return enemy && enemy.variant ? `${enemy.variant.name} · ${ENEMY_DATA[enemy.type].bossName}` : ENEMY_DATA[enemy.type].bossName; }
 
   function phaseTransition() {
     if (game.phase === "day") {
+      game.phase = "rest";
+      game.phaseTime = 0;
+      game.enemies.forEach((enemy) => { if (!isBossType(enemy.type)) enemy.dead = true; });
+      game.enemies = game.enemies.filter((enemy) => !enemy.dead);
+      game.enemyBullets.length = 0;
+      game.hazards.length = 0;
+      ui.restShop.classList.remove("hidden");
+      renderRestShop();
+      showToast(`第 ${game.day} 日 · 休整轮`, "24 秒无害兽刷新：采购种子、浇水、播种并整理阵地");
+      updateMission("休整与种子采购", "怪物只掉落生物质；使用面板购买本轮携带的三类种子");
+      aiSay("敌群撤退了！先别追，二十四秒全拿来种田和补给。", 4);
+      sound.tone(360, .35, "triangle", .04, 140);
+    } else if (game.phase === "rest") {
       game.phase = "night";
       game.phaseTime = 0;
       game.threatPulse = 1;
+      ui.restShop.classList.add("hidden");
       sound.tone(150, .35, "sawtooth", .05, -60);
       const bossType = bossTypeForDay(game.day);
       if (bossType) {
@@ -440,8 +555,11 @@
       game.bossSpawned = false;
       game.player.hp = Math.min(game.player.maxHp, game.player.hp + 12);
       game.water += 2;
-      game.seeds = game.seeds.map((v) => v + 1);
-      showToast(`第 ${game.day} 日 · 土壤回温`, "补给：生命 +12，水 +2，种子各 +1");
+      game.coins += 4;
+      game.irrigation = { x: WORLD_W / 2, y: WORLD_H / 2 - 205, progress: 0, captured: false, contested: false };
+      updateTerrainUi();
+      renderRestShop();
+      showToast(`第 ${game.day} 日 · 土壤回温`, "补给：生命 +12，水 +2，生物质 +4；今日地形规则已轮换");
       const beat = [
         "活下来了。广播里出现了另一个避难所的呼号，可它只重复着我们的名字。",
         "旧城天台还有土。那里的植物在没有人类照料后，学会了自己发光。",
@@ -452,6 +570,157 @@
       updateMission(`第 ${game.day} 日生存记录`, beat);
       showChoice("dawn");
     }
+  }
+
+  function updateTerrainUi() {
+    if (!game || !ui.terrainName) return;
+    const label = terrainLabel();
+    ui.terrainName.textContent = label.name;
+    ui.terrainCopy.textContent = label.copy;
+    ui.terrainCard.style.borderColor = activeTerrainIds().length > 1 ? "#ff9bb8" : "#fff";
+  }
+
+  function updateLoadoutAvailability() {
+    const allowed = game ? game.carriedSeeds : selectedSeedLoadout;
+    document.querySelectorAll(".seed-card").forEach((card) => {
+      const index = Number(card.dataset.seed);
+      card.classList.toggle("unavailable", !allowed.includes(index));
+    });
+    if (game && !allowed.includes(game.selectedSeed)) game.selectedSeed = allowed[0];
+  }
+
+  function renderRestShop() {
+    if (!game || !ui.restShopItems) return;
+    ui.restShopItems.innerHTML = "";
+    for (const index of game.carriedSeeds) {
+      const crop = CROP_TYPES[index];
+      const button = document.createElement("button");
+      button.innerHTML = `${crop.glyph} ${crop.name} ×2　<strong>◆2</strong>`;
+      button.disabled = game.coins < 2 || game.phase !== "rest";
+      button.addEventListener("click", () => buySeed(index));
+      ui.restShopItems.appendChild(button);
+    }
+  }
+
+  function buySeed(index) {
+    if (!game || game.phase !== "rest" || !game.carriedSeeds.includes(index) || game.coins < 2) return;
+    game.coins -= 2;
+    game.seeds[index] += 2;
+    floatText(game.player.x, game.player.y - 38, `+2 ${CROP_TYPES[index].name}`, CROP_TYPES[index].color, 12);
+    showToast("休整采购完成", `${CROP_TYPES[index].name}种子 +2，剩余生物质 ${game.coins}`);
+    sound.pickup();
+    renderRestShop();
+    updateHud();
+  }
+
+  function isBrokenBridgeGap(x, y) {
+    if (x < 1110 || x > 1270) return false;
+    const onBridge = (y > 180 && y < 330) || (y > 660 && y < 820) || (y > 1140 && y < 1300);
+    return !onBridge;
+  }
+
+  function updateTerrainRules(dt) {
+    if (!game) return;
+    const greenhouseActive = hasTerrain("greenhouse");
+    const ox = greenhouseActive ? Math.sin(game.elapsed * .34) * 155 : 0;
+    const oy = greenhouseActive ? Math.cos(game.elapsed * .27) * 72 : 0;
+    for (const plot of game.plots) {
+      if (plot.zone === "solar") { plot.x = plot.baseX + ox; plot.y = plot.baseY + oy; }
+      else { plot.x = plot.baseX; plot.y = plot.baseY; }
+    }
+
+    game.terrainDamageTimer = Math.max(0, game.terrainDamageTimer - dt);
+    if (hasTerrain("bridge") && isBrokenBridgeGap(game.player.x, game.player.y)) {
+      game.player.x = game.player.x < 1190 ? 1087 : 1293;
+      if (game.terrainDamageTimer <= 0) {
+        game.player.hurtCooldown = 0;
+        hurtPlayer(6, 1190, game.player.y);
+        floatText(game.player.x, game.player.y - 38, "断桥！", "#ffba78", 13);
+        game.terrainDamageTimer = .8;
+      }
+    }
+
+    if (hasTerrain("irrigation")) {
+      const station = game.irrigation;
+      const playerNear = dist(game.player, station) < 105;
+      station.contested = game.enemies.some((enemy) => !enemy.dead && !isBossType(enemy.type) && dist(enemy, station) < 135);
+      if (!station.captured) {
+        station.progress = clamp(station.progress + (playerNear && !station.contested ? dt : -dt * .45), 0, 3);
+        if (station.progress >= 3) {
+          station.captured = true;
+          game.water += 2;
+          for (const plot of game.plots) if (plot.state !== "empty") plot.wet = Math.max(plot.wet, 10);
+          showToast("灌溉站已占领", "全图作物补水；今日剩余时间缓慢恢复湿度");
+          aiSay("泵站归我们了！这次轮到水追着植物跑。", 3.5);
+          ringEffect(station.x, station.y, "#74e6d0", 180);
+        }
+      } else {
+        for (const plot of game.plots) if (plot.state === "growing") plot.wet = Math.min(12, plot.wet + dt * .28);
+      }
+    }
+  }
+
+  function discoverEntry(key, reward = 1) {
+    if (meta.discoveries[key]) return false;
+    meta.discoveries[key] = Date.now();
+    meta.crystals = (meta.crystals || 0) + reward;
+    storage.save(meta);
+    updateMetaDisplay();
+    if (game) {
+      const entry = codexEntries().find((item) => item.key === key);
+      showToast(`图鉴首次发现 · ${entry ? entry.name : key}`, `芽晶 +${reward}，已永久记录到末日图鉴`);
+      sound.level();
+    }
+    return true;
+  }
+
+  function codexEntries() {
+    const cropEntries = CROP_TYPES.map((crop, index) => ({ key: `crop:${crop.id}`, tab: "crops", type: "作物", name: crop.name, copy: `${crop.aura}；${crop.passive}。成熟 ${crop.grow} 秒。`, color: crop.color, index }));
+    const hybridEntries = HYBRIDS.map((hybrid) => ({ key: `hybrid:${hybrid.id}`, tab: "hybrids", type: "杂交作物", name: hybrid.name, copy: `${CROP_TYPES[hybrid.pair[0]].name} × ${CROP_TYPES[hybrid.pair[1]].name}：${hybrid.copy}`, color: hybrid.color }));
+    const fusionEntries = (typeof FUSIONS === "undefined" ? [] : FUSIONS).map((fusion) => ({ key: `fusion:${fusion.id}`, tab: "fusions", type: "插件融合", name: fusion.name, copy: `${fusion.copy}。${fusion.effect}`, color: fusion.color }));
+    const weaponEntries = Object.entries(WEAPONS).map(([id, weapon]) => ({ key: `weapon:${id}`, tab: "weapons", type: "主武器", name: weapon.name, copy: `${weapon.tag}：${weapon.copy}`, color: "#d67796" }));
+    const enemyEntries = Object.entries(ENEMY_NAMES).map(([id, name]) => ({ key: `enemy:${id}`, tab: "enemies", type: ENEMY_DATA[id].attacksCrops ? "夜间可攻击植物" : "只攻击玩家", name, copy: `生命 ${ENEMY_DATA[id].hp}，基础伤害 ${ENEMY_DATA[id].damage}。${ENEMY_DATA[id].attacksCrops ? "仅在夜晚会把田块列为目标。" : "不会主动攻击植物。"}`, color: ENEMY_DATA[id].color }));
+    const eliteEntries = ELITE_AFFIXES.map((affix) => ({ key: `elite:${affix.id}`, tab: "elites", type: "精英词缀", name: affix.name, copy: affix.copy, color: affix.color }));
+    const bossEntries = Object.entries(BOSS_VARIANTS).flatMap(([type, variants]) => variants.map((variant) => ({ key: `boss:${type}:${variant.id}`, tab: "bosses", type: ENEMY_DATA[type].bossName, name: variant.name, copy: variant.copy, color: ENEMY_DATA[type].color })));
+    return [...cropEntries, ...hybridEntries, ...fusionEntries, ...weaponEntries, ...enemyEntries, ...eliteEntries, ...bossEntries];
+  }
+
+  let currentCodexTab = "crops";
+  function openCodex() {
+    state = "codex";
+    ui.start.classList.add("hidden");
+    ui.codex.classList.remove("hidden");
+    renderCodex();
+  }
+
+  function closeCodex() {
+    state = "start";
+    ui.codex.classList.add("hidden");
+    ui.start.classList.remove("hidden");
+  }
+
+  function renderCodex() {
+    const tabs = [
+      ["crops", "基础作物"], ["hybrids", "杂交"], ["fusions", "融合配方"],
+      ["weapons", "武器"], ["enemies", "怪物"], ["elites", "精英词缀"], ["bosses", "Boss 变体"]
+    ];
+    ui.codexTabs.innerHTML = "";
+    for (const [id, label] of tabs) {
+      const button = document.createElement("button");
+      button.textContent = label;
+      button.classList.toggle("active", id === currentCodexTab);
+      button.addEventListener("click", () => { currentCodexTab = id; renderCodex(); });
+      ui.codexTabs.appendChild(button);
+    }
+    const all = codexEntries();
+    const entries = all.filter((entry) => entry.tab === currentCodexTab);
+    ui.codexGrid.innerHTML = entries.map((entry) => {
+      if (meta.discoveries[entry.key]) return `<article class="codex-entry" style="border-color:${entry.color}"><span>${entry.type} · 已发现</span><h3>${entry.name}</h3><p>${entry.copy}</p></article>`;
+      if (entry.tab === "fusions" || entry.tab === "hybrids") return `<article class="codex-entry unknown hinted" style="border-color:${entry.color}"><span>配方线索 · 未完成</span><h3>${entry.name}</h3><p>${entry.copy}</p></article>`;
+      return `<article class="codex-entry unknown">???<small>首次发现后解锁</small></article>`;
+    }).join("");
+    const found = all.filter((entry) => meta.discoveries[entry.key]).length;
+    ui.codexProgress.textContent = `已发现 ${found} / ${all.length} · 首次发现会直接奖励芽晶`;
   }
 
   function showToast(text, sub = "") {
@@ -476,10 +745,15 @@
     game.bossSpawned = true;
     const angle = rand(0, TAU);
     const boss = createEnemy(type, clamp(game.player.x + Math.cos(angle) * 430, 90, WORLD_W - 90), clamp(game.player.y + Math.sin(angle) * 360, 90, WORLD_H - 90));
+    const variants = BOSS_VARIANTS[type];
+    const variant = variants[Math.floor(Math.random() * variants.length)];
+    boss.variant = variant;
     const rating = combatRating();
     const adaptiveScale = clamp(.95 + rating * .075 + (game.day - 1) * .08, 1, 2.45);
-    boss.hp *= adaptiveScale;
+    boss.hp *= adaptiveScale * (variant.hp || 1);
     boss.maxHp = boss.hp;
+    boss.speed *= variant.speed || 1;
+    boss.damage *= variant.damage || 1;
     boss.adaptiveScale = adaptiveScale;
     boss.enrageStage = 0;
     boss.enter = 1.3;
@@ -488,6 +762,7 @@
     boss.skillTimer = type === "crowboss" ? 3.6 : type === "slimeboss" ? 4.2 : 3.2;
     game.boss = boss;
     game.enemies.push(boss);
+    discoverEntry(`boss:${type}:${variant.id}`, 3);
     game.shake = .8;
     game.freezeTimer = Math.max(game.freezeTimer, 2.15);
     const intro = {
@@ -495,9 +770,9 @@
       slimeboss: { icon: "●", warning: "腐蚀区与分裂召唤；低血量弹幕加速" },
       boss: { icon: "✣", warning: "自适应生命与双重年轮；爆发要留给狂暴阶段" }
     }[type];
-    ui.bossName.textContent = ENEMY_DATA[type].bossName;
+    ui.bossName.textContent = bossDisplayName(boss);
     ui.bossIcon.textContent = intro.icon;
-    ui.bossWarning.textContent = intro.warning;
+    ui.bossWarning.textContent = `${variant.copy} ${intro.warning}`;
     ui.bossIntro.classList.remove("hidden");
     ui.bossIntro.style.animation = "none"; void ui.bossIntro.offsetWidth; ui.bossIntro.style.animation = "boss-intro 2.25s ease both";
     setTimeout(() => ui.bossIntro.classList.add("hidden"), 2250);
@@ -522,7 +797,7 @@
     const d = ENEMY_DATA[type];
     const scale = 1 + game.elapsed * .0038 + (game.day - 1) * .13;
     const hpScale = isBossType(type) ? 1 : scale;
-    return {
+    const enemy = {
       type, x, y, vx: 0, vy: 0,
       radius: d.radius,
       hp: d.hp * hpScale,
@@ -541,6 +816,20 @@
       age: 0,
       facing: 0
     };
+    if (!isBossType(type)) {
+      discoverEntry(`enemy:${type}`, 1);
+      const eliteChance = Math.min(.19, .055 + game.day * .025);
+      if (chance(eliteChance)) {
+        const available = ELITE_AFFIXES.filter((affix) => affix.id !== "blight" || game.day >= 3);
+        const affix = available[Math.floor(Math.random() * available.length)];
+        enemy.affix = affix.id;
+        enemy.eliteName = affix.name;
+        enemy.eliteColor = affix.color;
+        affix.apply(enemy);
+        discoverEntry(`elite:${affix.id}`, 1);
+      }
+    }
+    return enemy;
   }
 
   function spawnEnemy(type = null, forcedX = null, forcedY = null) {
@@ -565,8 +854,8 @@
       y = clamp(game.player.y + Math.sin(a) * radius, 28, WORLD_H - 28);
     }
     const enemy = createEnemy(type, x, y);
-    if (type === "thief") enemy.targetPlot = getVulnerablePlot(true);
-    else if (game.phase === "night" && chance(type === "mite" ? .62 : .35)) {
+    if (game.phase === "night" && type === "thief") enemy.targetPlot = getVulnerablePlot(true);
+    else if (game.phase === "night" && enemyCanAttackCrops(enemy) && chance(type === "mite" ? .62 : .35)) {
       enemy.targetPlot = getVulnerablePlot();
     }
     game.enemies.push(enemy);
@@ -575,6 +864,10 @@
   function getVulnerablePlot(readyOnly = false) {
     const candidates = game.plots.filter((p) => readyOnly ? p.state === "ready" : p.state !== "empty");
     return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+  }
+
+  function enemyCanAttackCrops(enemy) {
+    return Boolean(ENEMY_DATA[enemy.type].attacksCrops || enemy.affix === "blight" || (enemy.variant && enemy.variant.cropHazard));
   }
 
   function update(dt) {
@@ -629,13 +922,14 @@
     if (game.phaseTime >= currentDuration() && !(game.phase === "night" && bossTypeForDay(game.day))) phaseTransition();
 
     const maxEnemies = (game.phase === "night" ? 38 : 22) + game.day * 4;
-    if (game.spawnTimer <= 0 && game.enemies.length < maxEnemies && !(game.boss && game.boss.enter > 0)) {
+    if (game.phase !== "rest" && game.spawnTimer <= 0 && game.enemies.length < maxEnemies && !(game.boss && game.boss.enter > 0)) {
       spawnEnemy();
       const pressure = 1 + game.elapsed / 170;
       game.spawnTimer = (game.phase === "night" ? rand(.38, .78) : rand(.85, 1.55)) / pressure;
     }
 
     updatePlayer(dt);
+    updateTerrainRules(dt);
     updatePlots(dt);
     updateCropPassives(dt);
     updateBullets(dt);
@@ -736,7 +1030,8 @@
       if (p.skillCooldown > 0) floatText(p.x, p.y - 40, `冷却 ${p.skillCooldown.toFixed(1)}s`, "#cfc4d7", 10);
       return;
     }
-    const power = game.skillPower;
+    const exclusiveLevel = game.items[game.character === "sprout" ? "sproutcore" : game.character === "beat" ? "beatcore" : "mochicore"] || 0;
+    const power = game.skillPower * (1 + exclusiveLevel * (game.character === "beat" ? .16 : .18));
     const character = CHARACTERS[game.character];
     p.skillCooldown = p.skillMax;
     game.shake = 1;
@@ -752,16 +1047,17 @@
         }
         if (plot.state === "ready" && dist(plot, p) < 560) {
           const target = nearestEnemy(plot.x, plot.y, 700);
-          for (let i = 0; i < 5; i++) {
-            const a = target ? Math.atan2(target.y - plot.y, target.x - plot.x) + (i - 2) * .16 : TAU * i / 5;
+          const compileShots = 5 + exclusiveLevel;
+          for (let i = 0; i < compileShots; i++) {
+            const a = target ? Math.atan2(target.y - plot.y, target.x - plot.x) + (i - (compileShots - 1) / 2) * .16 : TAU * i / compileShots;
             game.bullets.push({ x: plot.x, y: plot.y, vx: Math.cos(a) * 650, vy: Math.sin(a) * 650, radius: 5, damage: p.damage * .85 * power, life: 1.2, pierce: 1, ricochet: 0, homing: 3, crit: false, cropColor: CROP_TYPES[plot.crop].color, dead: false });
           }
           compiled++;
         }
       }
-      if (!compiled) game.seeds = game.seeds.map((seed) => seed + 1);
+      if (!compiled) for (const index of game.carriedSeeds) game.seeds[index] += 1;
       ringEffect(p.x, p.y, "#b79aff", 560);
-      showToast(character.skill, compiled ? `编译 ${compiled} 株作物，成熟植株已执行齐射` : "附近没有作物，回收出六种种子各 1 枚");
+      showToast(character.skill, compiled ? `编译 ${compiled} 株作物，成熟植株已执行齐射` : "附近没有作物，回收当前携带的三类种子各 1 枚");
     } else if (game.character === "beat") {
       game.skillFx = { type: "beat", time: .9, maxTime: .9 };
       let hits = 0;
@@ -788,6 +1084,7 @@
   }
 
   function updateRandomEvents(dt) {
+    if (game.phase === "rest") return;
     if (game.eventTime > 0) {
       game.eventTime -= dt;
       if (game.eventTime <= 0) {
@@ -799,7 +1096,7 @@
     game.eventTimer -= dt;
     if (game.eventTimer > 0 || game.boss) return;
     const events = [
-      { id: "seedrain", name: "种子雨", copy: "六种种子从数据云里噼里啪啦掉下来了" },
+      { id: "seedrain", name: "生物质雨", copy: "通用生物质从数据云坠落，可在休整轮采购种子" },
       { id: "datastorm", name: "算力风暴", copy: "12 秒内射速大幅提升，CPU 请抓紧扶手" },
       { id: "growstorm", name: "生长季风", copy: "15 秒内作物生长速度提高三倍" },
       { id: "migration", name: "害兽团建", copy: "一大群高价值害兽正在迷路过来" },
@@ -817,7 +1114,7 @@
     aiSay(event.id === "migration" ? "害兽也会团建？那我负责送它们集体下线。" : "检测到野生随机数！这次应该是好事。", 3.5);
     sound.level();
     if (event.id === "seedrain") {
-      for (let i = 0; i < 18; i++) dropPickup("seed", game.player.x + rand(-280, 280), game.player.y + rand(-210, 210), 1, i % CROP_TYPES.length);
+      for (let i = 0; i < 18; i++) dropPickup("coin", game.player.x + rand(-280, 280), game.player.y + rand(-210, 210), 1);
     }
     if (event.id === "migration") {
       for (let i = 0; i < 14; i++) spawnEnemy(i % 5 === 0 ? "bloater" : i % 3 === 0 ? "wasp" : "leech");
@@ -853,15 +1150,18 @@
 
   function shootPlayer() {
     const p = game.player;
+    const weapon = WEAPONS[game.weapon];
     const auras = activeCropAuras();
+    const hybrids = activeHybrids();
     const auraBoost = activeMutationBoost();
     if (p.attackMode === "melee") { swingMelee(auras, auraBoost); return; }
     const cloneShots = auras.has("clone") ? (game.fusions.mirrorgarden ? 2 : 1) : 0;
-    const count = p.multishot + cloneShots + (game.cloneTime > 0 ? 1 : 0);
-    const totalSpread = count > 1 ? .12 * (count - 1) : 0;
+    const count = weapon.shots + (p.multishot - 1) + cloneShots + (game.cloneTime > 0 ? 1 : 0);
+    const totalSpread = count > 1 ? Math.max(weapon.spread, .12 * (count - 1)) : 0;
     for (let i = 0; i < count; i++) {
       const a = p.angle - totalSpread / 2 + (count === 1 ? 0 : (totalSpread * i) / (count - 1));
-      const crit = chance(p.crit + (auras.has("sun") ? .18 : 0));
+      const hybridCrit = hybrids.has("sunpepper") ? .08 : hybrids.has("prismpea") ? .1 : 0;
+      const crit = chance(p.crit + (auras.has("sun") ? .18 : 0) + hybridCrit);
       game.bullets.push({
         x: p.x + Math.cos(a) * 20,
         y: p.y + Math.sin(a) * 20,
@@ -869,12 +1169,12 @@
         vy: Math.sin(a) * p.bulletSpeed,
         radius: p.bulletSize + (crit ? 1.5 : 0),
         damage: p.damage * auraBoost * stanceDamageMultiplier() * (crit ? 1.75 : 1),
-        life: 1.25,
-        pierce: p.pierce + (auras.has("thorn") ? 1 : 0),
+        life: weapon.life,
+        pierce: p.pierce + weapon.pierce + (auras.has("thorn") ? 1 : 0) + (hybrids.has("railpea") ? 1 : 0),
         ricochet: p.ricochet,
-        homing: p.homing + (auras.has("magnet") ? 4.2 * game.magnetPower : 0) + (game.fusions.stormseek ? 4 : 0),
-        splash: auras.has("pepper") ? 58 * game.pepperRadius * auraBoost : 0,
-        frost: auras.has("mint") ? 1.9 * game.mintPower * auraBoost : 0,
+        homing: p.homing + weapon.homing + (auras.has("magnet") ? 4.2 * game.magnetPower : 0) + (game.fusions.stormseek ? 4 : 0) + (hybrids.has("railpea") ? 4 : 0),
+        splash: (auras.has("pepper") ? 58 * game.pepperRadius * auraBoost : 0) + weapon.splash + (hybrids.has("sunpepper") ? 25 : 0),
+        frost: (auras.has("mint") ? 1.9 * game.mintPower * auraBoost : 0) + (hybrids.has("steampepper") ? 1.05 : 0),
         cropColor: auras.size ? CROP_TYPES.find((crop) => auras.has(crop.id)).color : null,
         crit,
         dead: false
@@ -928,6 +1228,13 @@
     return active;
   }
 
+  function activeHybrids() {
+    const active = new Set();
+    const radius = 205 * game.cropAura;
+    for (const plot of game.plots) if (plot.state === "ready" && plot.hybrid && dist(plot, game.player) <= radius) active.add(plot.hybrid);
+    return active;
+  }
+
   function activeMutationBoost() {
     const radius = 205 * game.cropAura;
     return game.plots.some((plot) => plot.state === "ready" && plot.mutation && dist(plot, game.player) <= radius) ? 1.35 : 1;
@@ -935,6 +1242,7 @@
 
   function updateBullets(dt) {
     for (const b of game.bullets) {
+      if (!b.hitTargets) b.hitTargets = new Set();
       if (b.homing > 0) {
         const target = nearestEnemy(b.x, b.y, 230);
         if (target) {
@@ -951,8 +1259,9 @@
       b.life -= dt;
       if (b.life <= 0 || b.x < -30 || b.x > WORLD_W + 30 || b.y < -30 || b.y > WORLD_H + 30) b.dead = true;
       for (const e of game.enemies) {
-        if (e.dead || b.dead) continue;
+        if (e.dead || b.dead || b.hitTargets.has(e)) continue;
         if (Math.hypot(b.x - e.x, b.y - e.y) < b.radius + e.radius) {
+          b.hitTargets.add(e);
           damageEnemy(e, b.damage, b.crit);
           if (b.frost && !e.dead) {
             e.frozen = Math.max(e.frozen || 0, b.frost);
@@ -1010,13 +1319,13 @@
     if (bossKill) {
       sound.boom();
       game.shake = 1.4;
-      for (let i = 0; i < 12; i++) dropPickup(i % 3 === 0 ? "seed" : i % 3 === 1 ? "coin" : "xp", enemy.x + rand(-80, 80), enemy.y + rand(-80, 80), i % 3 === 2 ? 18 : 1, i % CROP_TYPES.length);
+      for (let i = 0; i < 12; i++) dropPickup(i % 3 === 0 ? "water" : i % 3 === 1 ? "coin" : "xp", enemy.x + rand(-80, 80), enemy.y + rand(-80, 80), i % 3 === 2 ? 18 : 1);
       dropRelicChest(enemy.x, enemy.y, game.day);
       game.boss = null;
       game.hazards.length = 0;
       if (game.day === FINAL_DAY) setTimeout(() => finishRun(true), 900);
       else {
-        showToast(`${ENEMY_DATA[enemy.type].bossName} 已下线`, "阶段奖励到手，黎明即将到来");
+        showToast(`${bossDisplayName(enemy)} 已下线`, "阶段奖励到手，黎明即将到来");
         const reachDawn = () => {
           if (game.ended) return;
           if (state === "choice") { setTimeout(reachDawn, 500); return; }
@@ -1034,6 +1343,10 @@
       for (let i = 0; i < 2; i++) spawnEnemy("wasp", enemy.x + rand(-22, 22), enemy.y + rand(-22, 22));
       showToast("故障兽发生分裂", "特殊怪物死亡后会生成两只高速黄蜂");
     }
+    if (enemy.affix === "splitting") {
+      for (let i = 0; i < 2; i++) spawnEnemy("mite", enemy.x + rand(-24, 24), enemy.y + rand(-24, 24));
+      floatText(enemy.x, enemy.y - 24, "精英分裂！", "#d89bf0", 12);
+    }
     if (game.fusions.recursive) spawnRecursiveBurst(enemy.x, enemy.y);
     if (game.combo === 10 || game.combo === 20 || game.combo === 35) {
       aiSay(`${game.combo} 连击！小芽的礼貌模块已自动卸载！`, 2.8);
@@ -1043,8 +1356,7 @@
     const xpPieces = enemy.xp > 20 ? 3 : enemy.xp > 12 ? 2 : 1;
     for (let i = 0; i < xpPieces; i++) dropPickup("xp", enemy.x, enemy.y, enemy.xp / xpPieces);
     if (chance(.18 + game.dropLuck)) dropPickup("water", enemy.x + rand(-9, 9), enemy.y + rand(-9, 9), 1);
-    if (chance(.19 + game.dropLuck)) dropPickup("seed", enemy.x + rand(-12, 12), enemy.y + rand(-12, 12), 1, Math.floor(Math.random() * CROP_TYPES.length));
-    if (chance(.25 + game.dropLuck)) dropPickup("coin", enemy.x + rand(-12, 12), enemy.y + rand(-12, 12), 1);
+    if (chance(.42 + game.dropLuck)) dropPickup("coin", enemy.x + rand(-12, 12), enemy.y + rand(-12, 12), 1);
     const cloneCrop = game.plots.find((plot) => plot.state === "ready" && CROP_TYPES[plot.crop].id === "clone");
     if (cloneCrop && chance(cloneCrop.mutation ? .28 : .13)) dropPickup("xp", enemy.x + rand(-18, 18), enemy.y + rand(-18, 18), enemy.xp * .55);
   }
@@ -1097,8 +1409,9 @@
         continue;
       }
 
+      if (game.phase !== "night") e.targetPlot = null;
       if (e.targetPlot && e.targetPlot.state === "empty") e.targetPlot = null;
-      if (e.type === "thief" && !e.targetPlot && e.specialTimer <= 0) { e.targetPlot = getVulnerablePlot(true); e.specialTimer = 1.2; }
+      if (game.phase === "night" && e.type === "thief" && !e.targetPlot && e.specialTimer <= 0) { e.targetPlot = getVulnerablePlot(true); e.specialTimer = 1.2; }
       const target = e.targetPlot || p;
       let dx = target.x - e.x;
       let dy = target.y - e.y;
@@ -1138,7 +1451,7 @@
       e.x = clamp(e.x, 20, WORLD_W - 20);
       e.y = clamp(e.y, 20, WORLD_H - 20);
 
-      if (e.targetPlot && d < e.radius + e.targetPlot.radius && e.attackTimer <= 0) {
+      if (game.phase === "night" && enemyCanAttackCrops(e) && e.targetPlot && d < e.radius + e.targetPlot.radius && e.attackTimer <= 0) {
         if (e.type === "thief") {
           const stolen = e.targetPlot.crop;
           clearPlot(e.targetPlot);
@@ -1150,6 +1463,7 @@
         e.attackTimer = .72;
       } else if (dist(e, p) < e.radius + p.radius && e.attackTimer <= 0) {
         hurtPlayer(e.damage, e.x, e.y);
+        if (e.affix === "leeching") { e.hp = Math.min(e.maxHp, e.hp + e.damage * 2); floatText(e.x, e.y - e.radius, "虹吸", "#ef7f9e", 10); }
         e.attackTimer = .75;
       }
     }
@@ -1171,7 +1485,7 @@
       game.shake = 1.2;
       ringEffect(e.x, e.y, nextStage === 1 ? "#ffca68" : "#ff547e", 230);
       burst(e.x, e.y, nextStage === 1 ? "#ffca68" : "#ff547e", 34, 250);
-      showToast(`${ENEMY_DATA[e.type].bossName} · 狂暴阶段 ${nextStage + 1}`, nextStage === 1 ? "攻击节奏加快，首领立即释放技能" : "最终阶段：弹幕、召唤与碰撞伤害全面提升");
+      showToast(`${bossDisplayName(e)} · 狂暴阶段 ${nextStage + 1}`, nextStage === 1 ? "攻击节奏加快，首领立即释放技能" : "最终阶段：弹幕、召唤与碰撞伤害全面提升");
       aiSay(nextStage === 1 ? "血量阈值触发！它换阶段了，别把爆发全交在第一管血。" : "最终阶段！保命、躲红圈，然后再输出！", 4);
       sound.boom();
     }
@@ -1190,20 +1504,23 @@
 
     if (e.skillTimer <= 0) {
       castBossSkill(e, a, hpRatio);
-      e.skillTimer = (e.type === "crowboss" ? (hpRatio < .5 ? 3.4 : 4.4) : e.type === "slimeboss" ? (hpRatio < .5 ? 4 : 5.2) : (hpRatio < .5 ? 3 : 4.1)) * (1 - (e.enrageStage || 0) * .13);
+      e.skillTimer = (e.type === "crowboss" ? (hpRatio < .5 ? 3.4 : 4.4) : e.type === "slimeboss" ? (hpRatio < .5 ? 4 : 5.2) : (hpRatio < .5 ? 3 : 4.1)) * (1 - (e.enrageStage || 0) * .13) * (e.variant.skill || 1);
     }
 
     if (e.shootTimer <= 0) {
       if (e.type === "crowboss") {
-        for (let i = -3; i <= 3; i++) enemyShoot(e, a + i * .13, 355 + (1 - hpRatio) * 80, 9 + game.day);
+        const wing = 3 + Math.floor((e.variant.shots || 0) / 2);
+        const bulletSpeed = (355 + (1 - hpRatio) * 80) * (e.variant.id === "storm" ? 1.15 : 1);
+        for (let i = -wing; i <= wing; i++) enemyShoot(e, a + i * .13, bulletSpeed, 9 + game.day);
         if (hpRatio < .5) for (let i = 0; i < 8; i++) enemyShoot(e, e.age + TAU * i / 8, 245, 9);
         e.shootTimer = hpRatio < .5 ? .72 : 1.05;
       } else if (e.type === "slimeboss") {
-        const shots = hpRatio < .5 ? 18 : 12;
+        const shots = (hpRatio < .5 ? 18 : 12) + (e.variant.id === "acid" ? 2 : 0);
         for (let i = 0; i < shots; i++) enemyShoot(e, e.age * .35 + TAU * i / shots, hpRatio < .5 ? 235 : 190, 12);
         e.shootTimer = hpRatio < .5 ? .82 : 1.15;
       } else if (hpRatio > .55) {
-        for (let i = -3; i <= 3; i++) enemyShoot(e, a + i * .15, 315, 13);
+        const wing = 3 + Math.floor((e.variant.shots || 0) / 2);
+        for (let i = -wing; i <= wing; i++) enemyShoot(e, a + i * .15, 315, 13);
         e.shootTimer = 1.12;
       } else {
         const shots = 18;
@@ -1216,11 +1533,11 @@
     }
     e.summonTimer -= dt;
     if (e.summonTimer <= 0) {
-      const count = (hpRatio < .5 ? 5 : 3) + (e.enrageStage || 0);
+      const count = (hpRatio < .5 ? 5 : 3) + (e.enrageStage || 0) + (e.variant.summons || 0);
       const summonType = e.type === "crowboss" ? "wasp" : e.type === "slimeboss" ? "leech" : chance(.35) ? "bloater" : "spitter";
       for (let i = 0; i < count; i++) spawnEnemy(summonType, e.x + rand(-90, 90), e.y + rand(-90, 90));
       e.summonTimer = hpRatio < .5 ? 3.8 : 5.2;
-      showToast(`${ENEMY_DATA[e.type].bossName} 呼叫增援`, "首领机制升级，保持移动");
+      showToast(`${bossDisplayName(e)} 呼叫增援`, "首领机制升级，保持移动");
     }
     if (dist(e, p) < e.radius + p.radius && e.attackTimer <= 0) {
       hurtPlayer(e.damage, e.x, e.y);
@@ -1235,12 +1552,16 @@
     } else if (e.type === "slimeboss") {
       for (let i = 0; i < (hpRatio < .5 ? 5 : 3); i++) {
         const a = TAU * i / (hpRatio < .5 ? 5 : 3);
-        game.hazards.push({ kind: "circle", x: game.player.x + Math.cos(a) * (i ? 125 : 0), y: game.player.y + Math.sin(a) * (i ? 125 : 0), radius: 82, time: 1.15 + i * .08, maxTime: 1.55, damage: 15, color: "#73df9c", dead: false });
+        game.hazards.push({ kind: "circle", x: game.player.x + Math.cos(a) * (i ? 125 : 0), y: game.player.y + Math.sin(a) * (i ? 125 : 0), radius: 82 * (e.variant.hazard || 1), time: 1.15 + i * .08, maxTime: 1.55, damage: 15, color: "#73df9c", dead: false });
       }
       showToast("史莱姆技能 · 缓存泄漏", "绿色腐蚀区即将爆发，向空地移动");
     } else {
       game.hazards.push({ kind: "ring", x: game.player.x, y: game.player.y, radius: 150, width: 48, time: 1.15, maxTime: 1.15, damage: 19, color: "#e782c1", dead: false });
       game.hazards.push({ kind: "circle", x: game.player.x, y: game.player.y, radius: 64, time: 1.15, maxTime: 1.15, damage: 19, color: "#ffbd6d", dead: false });
+      if (e.variant.cropHazard) {
+        const targets = game.plots.filter((plot) => plot.state !== "empty").sort(() => Math.random() - .5).slice(0, 2);
+        for (const plot of targets) game.hazards.push({ kind: "circle", x: plot.x, y: plot.y, radius: 52, time: 1.35, maxTime: 1.35, damage: 28, color: "#8fca67", cropOnly: true, targetPlot: plot, dead: false });
+      }
       showToast("暴君技能 · 枯萎年轮", "中心与外环同时爆发，站在两者之间的安全带");
     }
     game.shake = .45;
@@ -1260,10 +1581,11 @@
       if (hazard.time > 0 || hazard.dead) continue;
       hazard.dead = true;
       let hit = false;
-      if (hazard.kind === "line") hit = pointLineDistance(game.player.x, game.player.y, hazard.x, hazard.y, hazard.angle, hazard.length) < hazard.width / 2 + game.player.radius;
-      if (hazard.kind === "circle") hit = Math.hypot(game.player.x - hazard.x, game.player.y - hazard.y) < hazard.radius + game.player.radius;
-      if (hazard.kind === "ring") hit = Math.abs(Math.hypot(game.player.x - hazard.x, game.player.y - hazard.y) - hazard.radius) < hazard.width / 2 + game.player.radius;
+      if (!hazard.cropOnly && hazard.kind === "line") hit = pointLineDistance(game.player.x, game.player.y, hazard.x, hazard.y, hazard.angle, hazard.length) < hazard.width / 2 + game.player.radius;
+      if (!hazard.cropOnly && hazard.kind === "circle") hit = Math.hypot(game.player.x - hazard.x, game.player.y - hazard.y) < hazard.radius + game.player.radius;
+      if (!hazard.cropOnly && hazard.kind === "ring") hit = Math.abs(Math.hypot(game.player.x - hazard.x, game.player.y - hazard.y) - hazard.radius) < hazard.width / 2 + game.player.radius;
       if (hit) hurtPlayer(hazard.damage, hazard.x, hazard.y);
+      if (hazard.cropOnly && hazard.targetPlot) damagePlot(hazard.targetPlot, hazard.damage);
       ringEffect(hazard.x, hazard.y, hazard.color, hazard.kind === "line" ? 95 : hazard.radius + (hazard.width || 0));
       burst(hazard.kind === "line" ? hazard.x + Math.cos(hazard.angle) * hazard.length * .55 : hazard.x, hazard.kind === "line" ? hazard.y + Math.sin(hazard.angle) * hazard.length * .55 : hazard.y, hazard.color, 22, 220);
       game.shake = .75; sound.boom();
@@ -1374,9 +1696,19 @@
     plot.growth = CROP_TYPES[plot.crop].grow;
     const diversity = new Set(game.plots.filter((other) => other.zone === plot.zone && other.crop !== null).map((other) => other.crop)).size;
     plot.mutation = chance(.05 + diversity * .055 + (plot.zone === "ruin" ? .13 : 0));
+    const donor = game.plots.find((other) => other !== plot && other.zone === plot.zone && other.state === "ready" && other.crop !== plot.crop && dist(other, plot) < 112);
+    const hybrid = donor ? HYBRIDS.find((entry) => entry.pair.includes(plot.crop) && entry.pair.includes(donor.crop)) : null;
+    if (hybrid && chance(.34 + (plot.mutation ? .12 : 0))) {
+      plot.hybrid = hybrid.id;
+      game.hybridCount++;
+      discoverEntry(`hybrid:${hybrid.id}`, 2);
+      showToast(`杂交成功 · ${hybrid.name}`, hybrid.copy);
+      floatText(plot.x, plot.y - 52, hybrid.name, hybrid.color, 14);
+      ringEffect(plot.x, plot.y, hybrid.color, 135);
+    }
     if (CROP_TYPES[plot.crop].id === "clone") {
-      const donor = game.plots.filter((other) => other !== plot && other.state === "ready" && CROP_TYPES[other.crop].id !== "clone").sort((a, b) => dist(a, plot) - dist(b, plot))[0];
-      plot.mimicCrop = donor ? donor.crop : 2;
+      const mimicDonor = game.plots.filter((other) => other !== plot && other.state === "ready" && CROP_TYPES[other.crop].id !== "clone").sort((a, b) => dist(a, plot) - dist(b, plot))[0];
+      plot.mimicCrop = mimicDonor ? mimicDonor.crop : 2;
       floatText(plot.x, plot.y - 46, `模仿${CROP_TYPES[plot.mimicCrop].name}`, "#d9b1ff", 11);
     }
     burst(plot.x, plot.y - 4, plot.mutation ? "#fff178" : CROP_TYPES[plot.crop].color, plot.mutation ? 20 : 10, plot.mutation ? 160 : 85);
@@ -1396,17 +1728,19 @@
       if (plot.state !== "ready") continue;
       const crop = CROP_TYPES[plot.crop];
       const pulsePower = plot.mutation ? 1.7 : 1;
+      const hybrid = plot.hybrid;
       plot.passiveTimer -= 1;
       if (crop.id === "sun" && plot.passiveTimer <= 0) {
         dropPickup("sun", plot.x, plot.y - 12, pulsePower);
-        plot.passiveTimer = plot.mutation ? 2 : 4;
+        plot.passiveTimer = hybrid === "twinsun" ? 1.5 : plot.mutation ? 2 : 4;
         burst(plot.x, plot.y, crop.color, 5, 55);
       }
       if (crop.id === "thorn") {
         const target = nearestEnemy(plot.x, plot.y, 420);
         if (target) {
           const a = Math.atan2(target.y - plot.y, target.x - plot.x);
-          game.bullets.push({ x: plot.x, y: plot.y, vx: Math.cos(a) * 540, vy: Math.sin(a) * 540, radius: 5, damage: game.player.damage * .46 * pulsePower * game.thornPower, life: 1.2, pierce: 1, ricochet: 0, homing: 1.6, crit: false, cropColor: crop.color, dead: false });
+          const hybridCrit = hybrid === "prismpea" && chance(.32);
+          game.bullets.push({ x: plot.x, y: plot.y, vx: Math.cos(a) * 540, vy: Math.sin(a) * 540, radius: 5, damage: game.player.damage * .46 * pulsePower * game.thornPower * (hybridCrit ? 1.7 : 1), life: 1.2, pierce: hybrid === "railpea" ? 3 : 1, ricochet: 0, homing: hybrid === "railpea" ? 7 : 1.6, crit: hybridCrit, cropColor: hybrid ? HYBRIDS.find((entry) => entry.id === hybrid).color : crop.color, dead: false });
         }
       }
       if (crop.id === "magnet") for (const item of game.pickups) if (dist(item, plot) < 300) { item.vx += (plot.x - item.x) * .35; item.vy += (plot.y - item.y) * .35; }
@@ -1419,7 +1753,7 @@
   }
 
   function damagePlot(plot, amount) {
-    if (plot.state === "empty") return;
+    if (game.phase !== "night" || plot.state === "empty") return;
     plot.hp -= amount / (game.cropArmor * plot.armorMod);
     plot.hit = .2;
     floatText(plot.x, plot.y - 23, `-${Math.round(amount / (game.cropArmor * plot.armorMod))}`, "#ff9c76", 10);
@@ -1439,6 +1773,7 @@
     plot.hp = plot.maxHp;
     plot.mutation = false;
     plot.mimicCrop = null;
+    plot.hybrid = null;
     plot.passiveTimer = rand(1, 3);
   }
 
@@ -1492,6 +1827,7 @@
       plot.wet = 8;
       plot.hp = plot.maxHp;
       game.seeds[game.selectedSeed]--;
+      discoverEntry(`crop:${CROP_TYPES[plot.crop].id}`, 1);
       burst(plot.x, plot.y, CROP_TYPES[plot.crop].color, 7, 70);
       sound.plant();
     } else if (plot.state === "ready") {
@@ -1574,6 +1910,27 @@
       floatText(game.player.x, game.player.y - 34, `模仿${mimicName} ${Math.round(15 * game.clonePower * harvestScale)}s`, crop.color, 14);
       ringEffect(game.player.x, game.player.y, crop.color, 180);
     }
+    if (plot.hybrid === "sunpepper") {
+      game.player.shield = Math.min(70, game.player.shield + 10);
+      for (const enemy of game.enemies) if (!enemy.dead && dist(enemy, plot) < 290) damageEnemy(enemy, 46 * effectYield, true);
+      ringEffect(plot.x, plot.y, "#ffb953", 290);
+    } else if (plot.hybrid === "steampepper") {
+      for (const enemy of game.enemies) if (!enemy.dead && Math.abs(enemy.y - plot.y) < 120) { enemy.frozen = Math.max(enemy.frozen || 0, 2.2); damageEnemy(enemy, 22 * effectYield); }
+      ringEffect(plot.x, plot.y, "#a8e9ff", 230);
+    } else if (plot.hybrid === "prismpea") {
+      for (let i = 0; i < 8; i++) {
+        const a = TAU * i / 8;
+        game.bullets.push({ x: plot.x, y: plot.y, vx: Math.cos(a) * 610, vy: Math.sin(a) * 610, radius: 5, damage: game.player.damage * .75, life: 1.25, pierce: 1, ricochet: 0, homing: 3, crit: true, cropColor: "#f4ef77", dead: false });
+      }
+    } else if (plot.hybrid === "railpea") {
+      addOverclock(35 * harvestScale);
+    } else if (plot.hybrid === "mirrorfrost") {
+      for (const enemy of game.enemies) if (!enemy.dead) damageEnemy(enemy, 24 * effectYield, false);
+      ringEffect(plot.x, plot.y, "#b8c5ff", 430);
+    } else if (plot.hybrid === "twinsun") {
+      addOverclock(45 * harvestScale);
+      game.player.shield = Math.min(70, game.player.shield + 12);
+    }
     clearPlot(plot);
   }
 
@@ -1612,7 +1969,7 @@
     if (item.type === "xp") gainXp(item.value);
     if (item.type === "water") { game.water += item.value; floatText(item.x, item.y, "+水", "#80d9ea", 11); }
     if (item.type === "seed") { game.seeds[item.variant] += item.value; floatText(item.x, item.y, `+${CROP_TYPES[item.variant].name}`, CROP_TYPES[item.variant].color, 10); }
-    if (item.type === "coin") { game.coins += item.value; game.score += 4; floatText(item.x, item.y, "+废金", "#f3d66b", 10); }
+    if (item.type === "coin") { game.coins += item.value; game.score += 4; floatText(item.x, item.y, "+生物质", "#f3d66b", 10); if (game.phase === "rest") renderRestShop(); }
     if (item.type === "sun") { game.player.hp = Math.min(game.player.maxHp, game.player.hp + 2 * item.value * game.sunPower); addOverclock(7 * item.value * game.sunPower); floatText(item.x, item.y, "+阳光", "#ffe66e", 10); }
     burst(item.x, item.y, itemColor(item), 5, 60);
     sound.pickup();
@@ -1709,7 +2066,10 @@
     { id: "magnetplant", icon: "◉", type: "作物插件", name: "磁菇线圈", max: 3, color: "#5fd0db", desc: () => "磁力菇追踪与清弹收益提高 25%。", detail: "满级可与追踪花粉融合。", apply: () => game.magnetPower *= 1.25 },
     { id: "mintplant", icon: "❄", type: "作物插件", name: "寒冰菌核", max: 3, color: "#7fcff2", desc: () => "寒冰菇冻结时长提高 24%。", detail: "满级可与环绕叶刃融合。", apply: () => game.mintPower *= 1.24 },
     { id: "cloneplant", icon: "♊", type: "作物插件", name: "模仿菌丝", max: 3, color: "#bd8df2", desc: () => "模仿菇持续时间提高 22%。", detail: "满级可与守田无人机融合。", apply: () => game.clonePower *= 1.22 },
-    { id: "orbit", icon: "✺", type: "近战插件", name: "环绕叶刃", max: 3, color: "#91e2c7", desc: () => "增加一枚环绕身体的高频叶刃。", detail: "满级可与零度薄荷融合。", apply: () => game.orbitLevel++ }
+    { id: "orbit", icon: "✺", type: "近战插件", name: "环绕叶刃", max: 3, color: "#91e2c7", desc: () => "增加一枚环绕身体的高频叶刃。", detail: "满级可与零度薄荷融合。", apply: () => game.orbitLevel++ },
+    { id: "sproutcore", character: "sprout", icon: "⌁", type: "小芽专属", name: "递归丰收指令", max: 2, color: "#a88ee4", desc: (level) => `丰收编译催熟量与齐射数量提高 ${level * 18}%。`, detail: "只有小芽能够读取的农业底层指令。", apply: () => {} },
+    { id: "beatcore", character: "beat", icon: "♫", type: "霹雳专属", name: "安可超频模块", max: 2, color: "#ff8a72", desc: (level) => `雷暴节拍伤害和超频时长提高 ${level * 16}%。`, detail: "让雷击的最后一拍重新成为第一拍。", apply: () => {} },
+    { id: "mochicore", character: "mochi", icon: "○", type: "奶泡专属", name: "软体温室协议", max: 2, color: "#71d7c2", desc: (level) => `泡泡温室护盾、治疗和催熟提高 ${level * 18}%。`, detail: "奶泡把护理算法改写成了农田护盾。", apply: () => {} }
   ];
 
   const FUSIONS = [
@@ -1733,14 +2093,18 @@
     ui.choiceTitle.textContent = mode === "dawn" ? "小芽从废品堆里翻出了好东西" : "选择一个插件，升级或凑出融合";
     ui.choiceSubtitle.textContent = mode === "dawn" ? "黎明补给更适合补齐你的合成路线" : "同名插件可以升级；满足配方时会自动融合";
     ui.choiceCards.innerHTML = "";
-    const pool = ITEMS.filter((item) => (game.items[item.id] || 0) < item.max);
+    const pool = ITEMS.filter((item) => (!item.character || item.character === game.character) && (game.items[item.id] || 0) < item.max);
     const chosen = [];
+    if (mode === "dawn") {
+      const exclusive = pool.find((item) => item.character === game.character);
+      if (exclusive) chosen.push(exclusive);
+    }
     if (mode === "level" && !game.items.blade && !game.items.anchor) {
       const core = pool.find((item) => item.id === (chance(.5) ? "blade" : "anchor"));
       if (core) chosen.push(core);
     }
     const progressing = pool.filter((item) => game.items[item.id]).sort((a, b) => (game.items[b.id] / b.max) - (game.items[a.id] / a.max));
-    if (progressing.length) chosen.push(progressing[0]);
+    if (progressing.length && !chosen.includes(progressing[0])) chosen.push(progressing[0]);
     const complement = pool.find((item) => !chosen.includes(item) && FUSIONS.some((fusion) => !game.fusions[fusion.id] && fusion.req[item.id] && Object.keys(fusion.req).some((id) => id !== item.id && game.items[id])));
     if (complement) chosen.push(complement);
     while (chosen.length < 3 && pool.length) {
@@ -1791,6 +2155,7 @@
     if (!fusion) return;
     game.fusions[fusion.id] = true;
     game.fusionCount++;
+    discoverEntry(`fusion:${fusion.id}`, 2);
     game.upgrades.push(`融合：${fusion.name}`);
     game.freezeTimer = 1.55;
     ui.fusionTitle.textContent = fusion.name;
@@ -1812,11 +2177,8 @@
     const owned = ITEMS.filter((item) => game.items[item.id]);
     const fused = FUSIONS.filter((fusion) => game.fusions[fusion.id]);
     const relics = RELICS.filter((relic) => game.relics[relic.id]);
-    if (!owned.length && !fused.length && !relics.length) {
-      ui.buildItems.innerHTML = "<em>等待安装...</em>";
-      return;
-    }
-    ui.buildItems.innerHTML = relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`).join("") + owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`).join("") + fused.map((fusion) => `<span class="build-item fused" title="融合：${fusion.name}">${fusion.icon}<b>★</b></span>`).join("");
+    const weaponIcon = game.weapon === "wand" ? "✧" : game.weapon === "rail" ? "━" : game.weapon === "shotgun" ? "≋" : "▸";
+    ui.buildItems.innerHTML = `<span class="build-item fused" title="主武器：${WEAPONS[game.weapon].name}" style="--item-color:#df7898">${weaponIcon}<b>W</b></span>` + relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`).join("") + owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`).join("") + fused.map((fusion) => `<span class="build-item fused" title="融合：${fusion.name}">${fusion.icon}<b>★</b></span>`).join("");
   }
 
   function renderCharacterDetail() {
@@ -1825,7 +2187,7 @@
     ui.characterDetailSkill.textContent = `主动 · ${character.skill}`;
     ui.characterDetailCd.textContent = `${character.skillCd} 秒`;
     ui.characterDetailCopy.textContent = character.skillDetail;
-    ui.characterDetailPassive.textContent = `被动：${character.passive}　定位：${character.role}`;
+    ui.characterDetailPassive.textContent = `被动：${character.passive}　专属插件：${character.exclusive}　定位：${character.role}`;
   }
 
   function updateParticles(dt) {
@@ -1865,7 +2227,7 @@
     game.ended = true;
     state = "end";
     input.mouse.down = false;
-    const earned = Math.max(1, Math.floor((Math.max(1, Math.floor(game.score / 230)) + game.fusionCount + (victory ? 4 : 0)) * game.crystalBonus));
+    const earned = Math.max(1, Math.floor((Math.max(1, Math.floor(game.score / 230)) + game.fusionCount + Math.floor(game.hybridCount / 2) + (victory ? 4 : 0)) * game.crystalBonus));
     meta.crystals += earned;
     meta.best = Math.max(meta.best, game.score);
     meta.runs = (meta.runs || 0) + 1;
@@ -1875,9 +2237,15 @@
     ui.end.classList.toggle("victory", victory);
     ui.endBadge.textContent = victory ? "本轮完成" : "本轮终止";
     const character = CHARACTERS[game.character];
-    ui.endTitle.textContent = victory ? `${character.name}看见了新的春天` : `${character.name}保存了这次记忆`;
+    const personalEndings = {
+      sprout: { title: "小芽把明天写进了土壤", copy: "种子库启动后，小芽删除了原本只追求产量的最高指令。她给自己的新任务命名为“陪你看完每一次发芽”。" },
+      beat: { title: "霹雳为新世界写下第一首歌", copy: "电网仍然沉默，霹雳却用灌溉泵和温室风扇拼出一段节拍。幸存者循着音乐而来，农田第一次变成了舞台。" },
+      mochi: { title: "奶泡确认希望可以食用", copy: "第一批新粮成熟时，奶泡修改了护理数据库：希望的营养价值未知，但能让人愿意活到下一顿饭。她决定继续观察一辈子。" }
+    };
+    const ending = personalEndings[game.character];
+    ui.endTitle.textContent = victory ? ending.title : `${character.name}保存了这次记忆`;
     ui.endCopy.textContent = victory
-      ? `枯穗暴君倒下后，种子库重新亮起。你和${character.name}没有拯救旧世界——你们种出了一个新的。完成 ${game.fusionCount} 次融合。`
+      ? `${ending.copy} 本轮完成 ${game.fusionCount} 次融合与 ${game.hybridCount} 次杂交。`
       : game.crops ? `夜色吞没了农田，但${character.name}在关机前备份了全部数据。芽晶会让下一次生存更有准备。` : `“别担心，”${character.name}说，“末日已经发生过一次，不会比重来更可怕。”`;
     ui.endScore.textContent = game.score;
     ui.endKills.textContent = game.kills;
@@ -1890,6 +2258,10 @@
 
   function selectSeed(index) {
     if (!game) return;
+    if (!game.carriedSeeds.includes(index)) {
+      floatText(game.player.x, game.player.y - 38, "本轮未携带", "#ff9b79", 11);
+      return;
+    }
     game.selectedSeed = index;
     document.querySelectorAll(".seed-card").forEach((el, i) => el.classList.toggle("active", i === index));
   }
@@ -1955,19 +2327,20 @@
     game.seeds.forEach((value, i) => { $(`seed-${i}`).textContent = value; });
 
     const night = game.phase === "night";
-    ui.phaseLabel.textContent = `第 ${game.day}/${FINAL_DAY} ${night ? "夜" : "日"} · ${night ? (bossTypeForDay(game.day) ? "首领" : "守田") : "探索"}`;
-    ui.phaseIcon.textContent = night ? "☾" : "☀";
+    const resting = game.phase === "rest";
+    ui.phaseLabel.textContent = `第 ${game.day}/${FINAL_DAY} ${night ? "夜" : resting ? "休整" : "日"} · ${night ? (bossTypeForDay(game.day) ? "首领" : "守田") : resting ? "采购播种" : "探索"}`;
+    ui.phaseIcon.textContent = night ? "☾" : resting ? "♨" : "☀";
     const dur = currentDuration();
     if (night && bossTypeForDay(game.day) && game.boss) {
       ui.clockText.textContent = game.day === FINAL_DAY ? "决 战" : "首 领";
       ui.phaseFill.style.width = `${clamp(game.boss.hp / game.boss.maxHp, 0, 1) * 100}%`;
-      ui.threat.textContent = `${ENEMY_DATA[game.boss.type].bossName} · ${Math.ceil(Math.max(0, game.boss.hp))} HP`;
+      ui.threat.textContent = `${bossDisplayName(game.boss)} · ${Math.ceil(Math.max(0, game.boss.hp))} HP`;
     } else {
       ui.clockText.textContent = formatTime(dur - game.phaseTime);
       ui.phaseFill.style.width = `${clamp(1 - game.phaseTime / dur, 0, 1) * 100}%`;
-      ui.threat.textContent = night ? "威胁高涨 · 守住作物" : game.day === FINAL_DAY ? "最后的白昼" : "探索大地图 · 收集与育种";
+      ui.threat.textContent = night ? "威胁高涨 · 只有特定害兽会攻击作物" : resting ? "安全窗口 · 购买种子并布置农田" : game.day === FINAL_DAY ? "最后的白昼" : "探索大地图 · 收集生物质与经验";
     }
-    ui.phaseFill.style.background = night ? "linear-gradient(90deg, #69578f, #c1709a)" : "linear-gradient(90deg, #f7a947, #f8d66d)";
+    ui.phaseFill.style.background = night ? "linear-gradient(90deg, #69578f, #c1709a)" : resting ? "linear-gradient(90deg, #58baa1, #9be4b2)" : "linear-gradient(90deg, #f7a947, #f8d66d)";
   }
 
   function draw() {
@@ -2063,6 +2436,7 @@
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); ctx.stroke(); }
     for (let y = 0; y <= WORLD_H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); ctx.stroke(); }
+    drawTerrainFeatures();
     for (const s of scenery) {
       if (Math.abs(s.x - WORLD_W / 2) < 230 && Math.abs(s.y - WORLD_H / 2) < 210) continue;
       const sway = Math.sin(t * 1.7 + s.x) * 2;
@@ -2073,6 +2447,42 @@
       ctx.beginPath(); ctx.arc(s.x + sway, s.y - s.size * 2.4, 2.2, 0, TAU); ctx.fill();
     }
     ctx.strokeStyle = "#fff8"; ctx.lineWidth = 10; ctx.strokeRect(5, 5, WORLD_W - 10, WORLD_H - 10);
+  }
+
+  function drawTerrainFeatures() {
+    if (hasTerrain("bridge")) {
+      const segments = [[0, 180], [330, 660], [820, 1140], [1300, WORLD_H]];
+      for (const [top, bottom] of segments) {
+        ctx.fillStyle = "#2b3144"; ctx.fillRect(1110, top, 160, bottom - top);
+        ctx.strokeStyle = "#dfad78"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(1110, top); ctx.lineTo(1110, bottom); ctx.moveTo(1270, top); ctx.lineTo(1270, bottom); ctx.stroke();
+      }
+      for (const [top, bottom] of [[180,330],[660,820],[1140,1300]]) {
+        ctx.fillStyle = "#8b674e"; ctx.fillRect(1110, top, 160, bottom - top);
+        ctx.strokeStyle = "#d6b078"; ctx.lineWidth = 3;
+        for (let x = 1118; x < 1270; x += 18) { ctx.beginPath(); ctx.moveTo(x, top + 5); ctx.lineTo(x, bottom - 5); ctx.stroke(); }
+      }
+    }
+    if (hasTerrain("greenhouse")) {
+      const zone = zonePosition("solar");
+      ctx.strokeStyle = "#ffd97d99"; ctx.lineWidth = 7; ctx.setLineDash([18, 12]);
+      ctx.beginPath(); ctx.ellipse(FIELD_ZONES[1].x, FIELD_ZONES[1].y, 210, 120, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#fff4b8"; ctx.beginPath(); ctx.arc(zone.x, zone.y, 10, 0, TAU); ctx.fill();
+    }
+    if (hasTerrain("irrigation")) {
+      const s = game.irrigation;
+      ctx.save(); ctx.translate(s.x, s.y);
+      ctx.fillStyle = s.captured ? "#68dcc4" : s.contested ? "#ef7780" : "#f1cf73";
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 33, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#4e566b"; ctx.fillRect(-7, -24, 14, 48); ctx.fillRect(-24, -7, 48, 14);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.globalAlpha = .7; ctx.beginPath(); ctx.arc(0, 0, 48, -Math.PI / 2, -Math.PI / 2 + TAU * (s.captured ? 1 : s.progress / 3)); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.font = "900 10px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(s.captured ? "已占领" : s.contested ? "争夺中" : "靠近占领", 0, 58); ctx.restore();
+    }
+  }
+
+  function zonePosition(zoneId) {
+    const plots = game.plots.filter((plot) => plot.zone === zoneId);
+    if (!plots.length) return FIELD_ZONES.find((zone) => zone.id === zoneId);
+    return { x: plots.reduce((sum, plot) => sum + plot.x, 0) / plots.length, y: plots.reduce((sum, plot) => sum + plot.y, 0) / plots.length };
   }
 
   function drawIdleFarm(t) {
@@ -2093,15 +2503,16 @@
   function drawFarm() {
     ctx.save();
     for (const zone of FIELD_ZONES) {
-      const farmX = zone.x - 105, farmY = zone.y - 95;
+      const center = zonePosition(zone.id);
+      const farmX = center.x - 105, farmY = center.y - 95;
       ctx.fillStyle = game.phase === "night" ? "#505769db" : `${zone.color}c9`;
       ctx.strokeStyle = zone.color; ctx.lineWidth = 5;
       roundRect(farmX, farmY, 210, 190, 23); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = game.phase === "night" ? "#34364a42" : "#7e6e5338"; ctx.lineWidth = 2;
       for (let x = farmX + 14; x < farmX + 205; x += 20) { ctx.beginPath(); ctx.moveTo(x, farmY + 8); ctx.lineTo(x - 28, farmY + 181); ctx.stroke(); }
-      ctx.fillStyle = "#3f354ecc"; ctx.beginPath(); ctx.roundRect(zone.x - 76, farmY - 18, 152, 28, 10); ctx.fill();
-      ctx.fillStyle = "#fff9eb"; ctx.textAlign = "center"; ctx.font = "900 11px 'Microsoft YaHei'"; ctx.fillText(zone.name, zone.x, farmY - 5);
-      ctx.fillStyle = "#e0d6e7"; ctx.font = "7px 'Microsoft YaHei'"; ctx.fillText(zone.copy, zone.x, farmY + 5);
+      ctx.fillStyle = "#3f354ecc"; ctx.beginPath(); ctx.roundRect(center.x - 76, farmY - 18, 152, 28, 10); ctx.fill();
+      ctx.fillStyle = "#fff9eb"; ctx.textAlign = "center"; ctx.font = "900 11px 'Microsoft YaHei'"; ctx.fillText(zone.name, center.x, farmY - 5);
+      ctx.fillStyle = "#e0d6e7"; ctx.font = "7px 'Microsoft YaHei'"; ctx.fillText(zone.copy, center.x, farmY + 5);
     }
     for (const plot of game.plots) drawPlot(plot);
     ctx.restore();
@@ -2170,6 +2581,12 @@
         if (plot.mutation) {
           ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.globalAlpha = .9;
           ctx.beginPath(); ctx.arc(sway * .5, -30 * scale, 15 + Math.sin(plot.sway * 5) * 2, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        if (plot.hybrid) {
+          const hybrid = HYBRIDS.find((entry) => entry.id === plot.hybrid);
+          ctx.strokeStyle = hybrid.color; ctx.lineWidth = 3; ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.arc(sway * .5, -30 * scale, 20 + Math.sin(plot.sway * 4) * 2, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = hybrid.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText("杂交", 0, -50 * scale);
         }
       }
       if (plot.state === "growing") {
@@ -2247,6 +2664,25 @@
     if (p.attackMode === "melee") {
       ctx.strokeStyle = "#fff5c1"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(17, 8); ctx.lineTo(38, 8); ctx.stroke();
       ctx.strokeStyle = "#ff9f6d"; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(38, -6, 18, .45, 2.05); ctx.stroke();
+    } else drawWeaponModel(game.weapon);
+    ctx.restore();
+  }
+
+  function drawWeaponModel(weapon) {
+    ctx.save(); ctx.translate(12, 0); ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+    if (weapon === "shotgun") {
+      ctx.fillStyle = "#e98b67"; ctx.beginPath(); ctx.roundRect(0, -8, 34, 16, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#5e5269"; for (let y = -6; y <= 6; y += 6) ctx.fillRect(28, y - 2, 11, 4);
+    } else if (weapon === "rail") {
+      ctx.fillStyle = "#6bc7d1"; ctx.beginPath(); ctx.roundRect(-2, -6, 48, 12, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ffe36b"; ctx.fillRect(12, -3, 25, 6); ctx.fillStyle = "#5a4c67"; ctx.fillRect(42, -4, 13, 8);
+    } else if (weapon === "wand") {
+      ctx.strokeStyle = "#a887de"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(38, 0); ctx.stroke();
+      ctx.fillStyle = "#83e0c4"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, 0, 9 + Math.sin(game.elapsed * 6) * 2, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fff07b"; ctx.beginPath(); ctx.arc(43, 0, 3, 0, TAU); ctx.fill();
+    } else {
+      ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.roundRect(0, -7, 34, 14, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ff668f"; ctx.beginPath(); ctx.arc(33, 0, 5, 0, TAU); ctx.fill();
     }
     ctx.restore();
   }
@@ -2293,6 +2729,10 @@
       ctx.save();
       ctx.translate(e.x, e.y);
       if (e.enter > 0) ctx.scale(1 + e.enter * .4, 1 + e.enter * .4);
+      if (e.affix) {
+        ctx.strokeStyle = e.eliteColor; ctx.lineWidth = 4; ctx.globalAlpha = .7 + Math.sin(e.age * 5) * .18;
+        ctx.beginPath(); ctx.arc(0, 0, e.radius + 8, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      }
       ctx.rotate(e.facing);
       if (e.hit > 0) ctx.filter = "brightness(2.6)";
       ctx.fillStyle = "#11101955";
@@ -2304,7 +2744,8 @@
       else drawExtraEnemy(e);
       ctx.filter = "none";
       ctx.restore();
-      if (isBossType(e.type) || e.hp < e.maxHp * .98) drawEnemyHealth(e);
+      if (e.affix) { ctx.fillStyle = e.eliteColor; ctx.font = "900 9px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`${ELITE_AFFIXES.find((a) => a.id === e.affix).icon}${e.eliteName}`, e.x, e.y - e.radius - 16); }
+      if (isBossType(e.type) || e.affix || e.hp < e.maxHp * .98) drawEnemyHealth(e);
     }
   }
 
@@ -2504,6 +2945,19 @@
       ctx.fillStyle = "rgba(18,20,43,.18)";
       ctx.fillRect(196, 72, W - 196, H - 72);
     }
+    const blackout = game.phase === "night" && (hasTerrain("blackout") || (game.boss && game.boss.variant && game.boss.variant.blackout));
+    if (blackout) {
+      const lights = [{ x: game.player.x, y: game.player.y, radius: 145 }];
+      for (const plot of game.plots) if (plot.state === "ready" && CROP_TYPES[plot.crop].id === "sun") lights.push({ x: plot.x, y: plot.y, radius: 175 });
+      ctx.save(); ctx.fillStyle = "rgba(7,8,22,.73)"; ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+      for (const light of lights) {
+        const sx = VIEW.x + VIEW.w / 2 + light.x - game.camera.x;
+        const sy = VIEW.y + VIEW.h / 2 + light.y - game.camera.y;
+        ctx.moveTo(sx + light.radius, sy); ctx.arc(sx, sy, light.radius, 0, TAU, true);
+      }
+      ctx.fill("evenodd"); ctx.restore();
+      ctx.fillStyle = "#fff1a8"; ctx.font = "900 9px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText("停电区：向日葵可扩大视野", VIEW.x + VIEW.w / 2, VIEW.y + 18);
+    }
     if (game.flash > 0) {
       ctx.fillStyle = `rgba(255,60,55,${game.flash * .18})`;
       ctx.fillRect(196, 72, W - 196, H - 72);
@@ -2558,7 +3012,7 @@
     const x = W - 135, y = 282, w = 105, h = 66;
     ctx.save(); ctx.fillStyle = "#fffaf0d9"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#72647f"; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "left"; ctx.fillText("农区雷达", x + 8, y + 11);
-    for (const zone of FIELD_ZONES) { ctx.fillStyle = zone.color; ctx.beginPath(); ctx.arc(x + 7 + zone.x / WORLD_W * (w - 14), y + 16 + zone.y / WORLD_H * (h - 22), 4, 0, TAU); ctx.fill(); }
+    for (const zone of FIELD_ZONES) { const center = zonePosition(zone.id); ctx.fillStyle = zone.color; ctx.beginPath(); ctx.arc(x + 7 + center.x / WORLD_W * (w - 14), y + 16 + center.y / WORLD_H * (h - 22), 4, 0, TAU); ctx.fill(); }
     ctx.fillStyle = "#ef668d"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 7 + game.player.x / WORLD_W * (w - 14), y + 16 + game.player.y / WORLD_H * (h - 22), 4.5, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.restore();
   }
@@ -2612,6 +3066,8 @@
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   $("start-btn").addEventListener("click", openStory);
+  $("codex-btn").addEventListener("click", openCodex);
+  $("codex-close").addEventListener("click", closeCodex);
   $("story-next").addEventListener("click", advanceStory);
   $("story-skip").addEventListener("click", startRun);
   $("restart-btn").addEventListener("click", startRun);
@@ -2620,6 +3076,27 @@
   $("home-pause-btn").addEventListener("click", goHome);
   $("home-end-btn").addEventListener("click", goHome);
   document.querySelectorAll(".seed-card").forEach((button) => button.addEventListener("click", () => selectSeed(Number(button.dataset.seed))));
+  document.querySelectorAll(".weapon-card").forEach((button) => {
+    button.title = WEAPONS[button.dataset.weapon].copy;
+    button.addEventListener("click", () => {
+      selectedWeapon = button.dataset.weapon;
+      document.querySelectorAll(".weapon-card").forEach((card) => card.classList.toggle("active", card === button));
+      sound.tone(360, .08, "square", .035, 120);
+    });
+  });
+  document.querySelectorAll(".loadout-seed").forEach((button) => button.addEventListener("click", () => {
+    const index = Number(button.dataset.loadoutSeed);
+    if (selectedSeedLoadout.includes(index)) {
+      button.classList.add("limit"); setTimeout(() => button.classList.remove("limit"), 550);
+      return;
+    }
+    selectedSeedLoadout.shift();
+    selectedSeedLoadout.push(index);
+    document.querySelectorAll(".loadout-seed").forEach((entry) => entry.classList.toggle("active", selectedSeedLoadout.includes(Number(entry.dataset.loadoutSeed))));
+    ui.seedLoadoutCount.textContent = `${selectedSeedLoadout.length} / 3`;
+    updateLoadoutAvailability();
+    sound.tone(460, .08, "triangle", .035, 100);
+  }));
   document.querySelectorAll(".character-card").forEach((button) => button.addEventListener("click", () => {
     selectedCharacter = button.dataset.character;
     document.querySelectorAll(".character-card").forEach((card) => card.classList.toggle("active", card === button));
@@ -2636,7 +3113,7 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
-      snapshot: () => game ? ({ day: game.day, phase: game.phase, character: game.character, skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, seeds: [...game.seeds], world: [WORLD_W, WORLD_H], plots: game.plots.length, zones: [...new Set(game.plots.map((plot) => plot.zone))], boss: game.boss ? { type: game.boss.type, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-3).map((b) => ({ splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
+      snapshot: () => game ? ({ day: game.day, phase: game.phase, character: game.character, weapon: game.weapon, carriedSeeds: [...game.carriedSeeds], skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), plots: game.plots.length, hybrids: game.hybridCount, elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-3).map((b) => ({ splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
       readyCrop: (index) => { const plot = game.plots[0]; plot.crop = index; plot.state = "ready"; plot.growth = CROP_TYPES[index].grow; game.player.x = plot.x; game.player.y = plot.y + 100; },
       breakShield: () => { game.player.shield = 8; game.player.hurtCooldown = 0; hurtPlayer(12, game.player.x - 30, game.player.y); },
       summonBoss: (type) => { game.enemies.length = 0; game.boss = null; game.bossSpawned = false; game.phase = "night"; game.day = type === "crowboss" ? 2 : type === "slimeboss" ? 4 : 5; spawnBoss(type); },
@@ -2646,7 +3123,10 @@
       dropChest: () => { game.nightChestDays[game.day] = false; dropRelicChest(game.player.x + 25, game.player.y, game.day); },
       hurtBoss: (ratio) => { if (game.boss) game.boss.hp = game.boss.maxHp * ratio; },
       endRun: () => finishRun(false),
-      eventNow: () => { game.activeEvent = null; game.eventTime = 0; game.eventTimer = 0; }
+      eventNow: () => { game.activeEvent = null; game.eventTime = 0; game.eventTimer = 0; },
+      toRest: () => { game.phase = "day"; game.phaseTime = currentDuration(); game.freezeTimer = 0; update(.02); },
+      buySeed: (index) => { game.coins = Math.max(game.coins, 2); buySeed(index); },
+      forceHybrid: (hybridId) => { const h = HYBRIDS.find((entry) => entry.id === hybridId); if (!h) return false; const plots = game.plots.filter((plot) => plot.zone === "home").slice(0, 2); plots[0].crop = h.pair[0]; plots[0].state = "ready"; plots[0].growth = CROP_TYPES[h.pair[0]].grow; plots[1].crop = h.pair[1]; plots[1].state = "growing"; plots[1].growth = CROP_TYPES[h.pair[1]].grow; const original = Math.random; Math.random = () => 0; maturePlot(plots[1]); Math.random = original; return plots[1].hybrid; }
     };
   }
 
@@ -2654,4 +3134,3 @@
   updateMetaDisplay();
   requestAnimationFrame(frame);
 })();
-
