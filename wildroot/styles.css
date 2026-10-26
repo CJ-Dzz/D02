@@ -778,7 +778,9 @@ h1 { color: #514263; font-size: clamp(44px, 5.7vw, 73px); text-shadow: 0 5px 0 #
 .rest-shop small { color: #d46c8e; font-size: 7px; font-weight: 900; letter-spacing: .12em; }
 .rest-shop b { font-size: 10px; }
 #rest-shop-items { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-top: 8px; }
+#rest-shop-items .rest-shop-section { grid-column: 1 / -1; padding: 3px 2px 0; color: #b05f80; font-size: 7px; font-weight: 900; letter-spacing: .12em; }
 #rest-shop-items button { padding: 6px; color: #65586e; background: #f4edf6; border: 2px solid #fff; border-radius: 9px; font-size: 8px; font-weight: 900; cursor: pointer; }
+#rest-shop-items button.combo-card { color: #775069; background: linear-gradient(135deg,#fff1b9,#f4e4ff); }
 #rest-shop-items button strong { color: #d17a39; }
 #rest-shop-items button:disabled { opacity: .4; cursor: default; }
 

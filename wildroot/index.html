@@ -44,7 +44,7 @@
       </div>
 
       <div class="overclock-meter">
-        <span>爽感超频</span>
+        <span>收成超频</span>
         <div><i id="overclock-fill"></i></div>
         <b id="overclock-text">0%</b>
       </div>
@@ -90,10 +90,10 @@
       <div id="context-hint" class="context-hint hidden"><kbd>E</kbd><span>播种火爆辣椒</span></div>
       <div id="ai-speech" class="ai-speech hidden"><b>小芽</b><span>今日也要科学种田！</span></div>
       <div id="random-event" class="random-event hidden"><small>异常天气</small><b>数据雨降临</b><span>附近资源正在被磁化</span></div>
-      <div id="mission-card" class="mission-card"><small>末日生存日志</small><b>寻找分散农区</b><span>成熟作物会改造附近弹丸</span></div>
+      <div id="mission-card" class="mission-card"><small>末日生存日志</small><b>寻找分散农区</b><span>成熟作物与收获动能决定人物战斗力</span></div>
       <div id="terrain-card" class="terrain-card"><small>今日地形规则</small><b id="terrain-name">可争夺灌溉站</b><span id="terrain-copy">占领后为全图田块补水</span></div>
       <div id="rest-shop" class="rest-shop hidden">
-        <div><small>休整采购 · 本轮限携 3 类种子</small><b>使用生物质补充种子</b></div>
+        <div><small>休整采购 · 种子与组合卡</small><b>组合卡需先完成成就</b></div>
         <div id="rest-shop-items"></div>
       </div>
       <div class="controls-hint"><span><kbd>WASD</kbd> 移动</span><span><kbd>鼠标</kbd> 瞄准射击</span><span><kbd>E</kbd> 耕作</span><span><kbd>Q</kbd> AI 技能</span><span><kbd>Space</kbd> 冲刺</span><span><kbd>P</kbd> 暂停</span></div>
@@ -111,7 +111,7 @@
       <p class="pitch"><b>小芽 AI-07</b> 与你被留在熄灭后的世界。<br />最后的种子、五个夜晚，以及一块不能失去的田。</p>
       <div class="character-select" aria-label="选择 AI 娘">
         <button class="character-card active" data-character="sprout"><i class="mini-ai sprout">⌁</i><span><b>小芽 AI-07</b><small>技能「丰收编译」· 催熟并齐射</small></span><em>均衡</em></button>
-        <button class="character-card" data-character="beat"><i class="mini-ai beat">⚡</i><span><b>霹雳 BEAT-02</b><small>技能「雷暴节拍」· 清场超频</small></span><em>火力</em></button>
+        <button class="character-card" data-character="beat"><i class="mini-ai beat">⚡</i><span><b>霹雳 BEAT-02</b><small>技能「雷暴节拍」· 作物导电清场</small></span><em>火力</em></button>
         <button class="character-card" data-character="mochi"><i class="mini-ai mochi">♡</i><span><b>奶泡 MOCHI-11</b><small>技能「泡泡温室」· 护盾生长</small></span><em>支援</em></button>
       </div>
       <div id="character-detail" class="character-detail" aria-live="polite">
@@ -151,7 +151,7 @@
       <div class="meta-lab">
         <div class="meta-lab-title"><b>末日避难所 · 永久改造</b><span>跨轮次保留 · 六条路线最高 LV.8</span></div>
         <div class="meta-modules">
-          <button data-meta="compute"><i>⚡</i><span><b>战斗算力</b><small>攻击力 +6% / 级</small></span><em>LV.0</em><strong>◆ 3</strong></button>
+          <button data-meta="compute"><i>⚡</i><span><b>共生算力</b><small>成熟作物转化更多战斗力</small></span><em>LV.0</em><strong>◆ 3</strong></button>
           <button data-meta="soil"><i>♣</i><span><b>育种算法</b><small>生长 +9%，定期增加初始种子</small></span><em>LV.0</em><strong>◆ 3</strong></button>
           <button data-meta="backup"><i>♡</i><span><b>备份协议</b><small>生命 +7，水和护盾提升</small></span><em>LV.0</em><strong>◆ 3</strong></button>
           <button data-meta="radar"><i>◉</i><span><b>废土雷达</b><small>吸附范围与稀有掉落提升</small></span><em>LV.0</em><strong>◆ 3</strong></button>
@@ -160,11 +160,11 @@
         </div>
       </div>
       <div class="start-tips">
-        <span><i class="tip-day"></i>白昼：狩猎资源，照料作物</span>
+        <span><i class="tip-day"></i>白昼：培育作物，换取战斗增益</span>
         <span><i class="tip-night"></i>夜晚：啃根虫、野猪与掠种贼会攻击田地</span>
         <span><i class="tip-crop"></i>成熟：每种作物都能强化战斗</span>
       </div>
-      <p class="version">BUILD 6.0 · 休整、地形轮换、杂交与武器库</p>
+      <p class="version">BUILD 6.1 · 农战共生、组合植株与种子狂暴</p>
     </section>
 
     <section id="story-screen" class="screen story-screen hidden">
@@ -191,7 +191,7 @@
         <div class="codex-head"><div><span>ARK DATABASE</span><h2>末日图鉴</h2><p id="codex-progress">已发现 0 / 0</p></div><button id="codex-close">返回主页</button></div>
         <div id="codex-tabs" class="codex-tabs"></div>
         <div id="codex-grid" class="codex-grid"></div>
-        <small class="codex-note">首次发现作物、杂交、融合、武器、精英词缀与 Boss 变体会获得芽晶。</small>
+        <small class="codex-note">首次发现作物、杂交、组合植株、融合、武器、精英词缀与 Boss 变体会获得芽晶。</small>
       </div>
     </section>
 
@@ -230,7 +230,7 @@
       <div class="fusion-burst">✦</div>
       <span>插件融合完成</span>
       <h2 id="fusion-title">超辣链式反应</h2>
-      <p id="fusion-copy">辣椒燃烧芯 × 弹射孢子</p>
+      <p id="fusion-copy">辣椒燃烧芯 × 弹射藤蔓</p>
     </section>
   </main>
   <script src="game.js"></script>
