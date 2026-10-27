@@ -21,6 +21,7 @@
         <div class="phase-clock">
           <div class="clock-row"><span id="phase-icon">☀</span><strong id="clock-text">00:40</strong></div>
           <div class="phase-track"><i id="phase-fill"></i></div>
+          <div id="wave-pips" class="wave-pips" aria-label="15 波进度"></div>
           <small id="threat-label">威胁正在苏醒</small>
         </div>
         <div class="score-box">
@@ -96,13 +97,13 @@
       <div id="mission-card" class="mission-card"><small>末日生存日志</small><b>寻找分散农区</b><span>成熟作物与收获动能决定人物战斗力</span></div>
       <div id="terrain-card" class="terrain-card"><small>今日地形规则</small><b id="terrain-name">可争夺灌溉站</b><span id="terrain-copy">占领后为全图田块补水</span></div>
       <div id="rest-shop" class="rest-shop hidden">
-        <div><small>商店 NPC · 休整不限时</small><b>完成整备后主动进入夜晚</b></div>
+        <div class="rest-header"><span><small>商店 NPC · 休整不限时</small><b>完成整备后主动进入下一波</b></span><button id="shop-toggle" aria-expanded="true">上拉收起 ▲</button></div>
         <div id="rest-shop-items"></div>
         <div class="merchant-shop">
           <div class="merchant-head"><span><i>商</i><b>废土货郎 · 阿栓</b><small>商品属性完全随机，不保证适配当前构筑</small></span><button id="merchant-refresh">刷新 ◆2</button></div>
           <div id="merchant-items"></div>
         </div>
-        <button id="rest-continue" class="rest-continue">准备完成 · 进入夜晚 <kbd>F</kbd></button>
+        <button id="rest-continue" class="rest-continue">准备完成 · 进入下一波 <kbd>F</kbd></button>
       </div>
       <div class="controls-hint"><span><kbd>WASD</kbd> 移动</span><span><kbd>鼠标</kbd> 瞄准射击</span><span><kbd>滚轮</kbd> 切种子/道具</span><span><kbd>E</kbd> 耕作/使用</span><span><kbd>Q</kbd> AI 技能</span><span><kbd>Space</kbd> 冲刺</span><span><kbd>P</kbd> 暂停</span></div>
       <button id="sound-btn" class="icon-button" aria-label="切换声音">♪</button>
@@ -131,10 +132,11 @@
         <div class="loadout-panel weapon-loadout">
           <span>主武器</span>
           <div>
-            <button class="weapon-card active" data-weapon="rifle"><b>脉冲步枪</b><small>均衡连射</small></button>
-            <button class="weapon-card" data-weapon="shotgun"><b>孢子霰弹枪</b><small>近距多弹</small></button>
-            <button class="weapon-card" data-weapon="rail"><b>根系轨道枪</b><small>慢射贯穿</small></button>
-            <button class="weapon-card" data-weapon="wand"><b>共生法杖</b><small>追踪法球</small></button>
+            <button class="weapon-card active" data-weapon="rifle"><b>脉冲步枪</b><small>第 6 发过载</small></button>
+            <button class="weapon-card" data-weapon="shotgun"><b>孢子霰弹枪</b><small>贴脸孢爆</small></button>
+            <button class="weapon-card" data-weapon="rail"><b>根系轨道枪</b><small>贯穿蓄能</small></button>
+            <button class="weapon-card" data-weapon="wand"><b>共生法杖</b><small>命中分芽</small></button>
+            <button class="weapon-card" data-weapon="scythe"><b>月芽收割镰</b><small>初始近战武器</small></button>
           </div>
         </div>
         <div class="loadout-panel seed-loadout">
@@ -172,7 +174,7 @@
         <span><i class="tip-night"></i>夜晚：啃根虫、野猪与掠种贼会攻击田地</span>
         <span><i class="tip-crop"></i>成熟：每种作物都能强化战斗</span>
       </div>
-      <p class="version">BUILD 6.2 · 四种子、属性节点与废土商店</p>
+      <p class="version">BUILD 6.3 · 五武器、十五波与奖励关</p>
     </section>
 
     <section id="story-screen" class="screen story-screen hidden">

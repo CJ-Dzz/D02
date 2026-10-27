@@ -10,11 +10,14 @@
   const WORLD_H = 1480;
   const VIEW = { x: 196, y: 72, w: W - 196, h: H - 72 };
   const FINAL_DAY = 5;
+  const TOTAL_WAVES = 15;
+  const REWARD_WAVES = new Set([3, 8]);
+  const BOSS_WAVES = { 6: "crowboss", 12: "slimeboss", 15: "boss" };
 
   const $ = (id) => document.getElementById(id);
   const ui = {
     hud: $("hud"), start: $("start-screen"), story: $("story-screen"), choice: $("choice-screen"), pause: $("pause-screen"), end: $("end-screen"), bossIntro: $("boss-intro"),
-    phaseLabel: $("phase-label"), phaseIcon: $("phase-icon"), clockText: $("clock-text"), phaseFill: $("phase-fill"), threat: $("threat-label"),
+    phaseLabel: $("phase-label"), phaseIcon: $("phase-icon"), clockText: $("clock-text"), phaseFill: $("phase-fill"), threat: $("threat-label"), wavePips: $("wave-pips"),
     hpFill: $("hp-fill"), hpText: $("hp-text"), xpFill: $("xp-fill"), xpText: $("xp-text"),
     score: $("score-text"), water: $("water-text"), coins: $("coin-text"), dash: $("dash-fill"), dashLabel: $("dash-label"), dashState: $("dash-state"),
     context: $("context-hint"), sound: $("sound-btn"), choiceCards: $("choice-cards"), choiceEyebrow: $("choice-eyebrow"), choiceTitle: $("choice-title"), choiceSubtitle: $("choice-subtitle"),
@@ -27,7 +30,7 @@
     characterDetailIcon: $("character-detail-icon"), characterDetailSkill: $("character-detail-skill"), characterDetailCd: $("character-detail-cd"), characterDetailCopy: $("character-detail-copy"), characterDetailPassive: $("character-detail-passive"),
     storyChapter: $("story-chapter"), storyTitle: $("story-title"), storyText: $("story-text"), storySpeaker: $("story-speaker"), storyAvatar: $("story-avatar"),
     bossName: $("boss-name"), bossIcon: $("boss-icon"), bossWarning: $("boss-warning"),
-    terrainCard: $("terrain-card"), terrainName: $("terrain-name"), terrainCopy: $("terrain-copy"), restShop: $("rest-shop"), restShopItems: $("rest-shop-items"), merchantItems: $("merchant-items"), merchantRefresh: $("merchant-refresh"), restContinue: $("rest-continue"), activeTool: $("active-tool"), activeToolName: $("active-tool-name"), activeToolCount: $("active-tool-count"),
+    terrainCard: $("terrain-card"), terrainName: $("terrain-name"), terrainCopy: $("terrain-copy"), restShop: $("rest-shop"), restShopItems: $("rest-shop-items"), merchantItems: $("merchant-items"), merchantRefresh: $("merchant-refresh"), restContinue: $("rest-continue"), shopToggle: $("shop-toggle"), activeTool: $("active-tool"), activeToolName: $("active-tool-name"), activeToolCount: $("active-tool-count"),
     codex: $("codex-screen"), codexTabs: $("codex-tabs"), codexGrid: $("codex-grid"), codexProgress: $("codex-progress"), seedLoadoutCount: $("seed-loadout-count")
   };
 
@@ -100,13 +103,14 @@
       if (this.bgmClock > 0) return;
       const boss = Boolean(game.boss);
       const night = game.phase === "night";
-      const melody = boss ? [110,165,147,196,110,220,165,147] : night ? [147,175,165,131,147,220,196,165] : [196,247,294,262,220,294,330,247];
-      const bass = boss ? [55,55,73,65] : night ? [73,65,82,55] : [98,110,123,110];
+      const reward = isRewardWave();
+      const melody = boss ? [110,165,147,196,110,220,165,147] : reward ? [262,330,392,523,392,440,523,659] : night ? [147,175,165,131,147,220,196,165] : [196,247,294,262,220,294,330,247];
+      const bass = boss ? [55,55,73,65] : reward ? [131,165,196,165] : night ? [73,65,82,55] : [98,110,123,110];
       const step = this.bgmStep++;
       this.tone(melody[step % melody.length], boss ? .18 : .24, boss ? "sawtooth" : "triangle", boss ? .018 : .014, 0);
       if (step % 2 === 0) this.tone(bass[Math.floor(step / 2) % bass.length], .32, "sine", .016, 0);
       if (boss && step % 2 === 1) this.tone(65, .035, "square", .012, -8);
-      this.bgmClock = boss ? .19 : night ? .3 : .36;
+      this.bgmClock = boss ? .19 : reward ? .26 : night ? .3 : .36;
     }
   }
   const sound = new SoundEngine();
@@ -129,10 +133,11 @@
   let selectedSeedLoadout = [0, 1, 2, 3];
 
   const WEAPONS = {
-    rifle: { name: "脉冲步枪", tag: "均衡连射", copy: "射速、射程与伤害均衡，适合所有作物光环。", damage: 1, fire: 1, speed: 1, size: 1, shots: 1, spread: 0, life: 1.25, pierce: 0, homing: 0, splash: 0 },
-    shotgun: { name: "孢子霰弹枪", tag: "近距多弹", copy: "一次发射 5 枚孢子，射程较短，贴近目标时爆发极高。", damage: .62, fire: 1.55, speed: .86, size: 1.12, shots: 5, spread: .52, life: .7, pierce: 0, homing: 0, splash: 0 },
-    rail: { name: "根系轨道枪", tag: "慢射贯穿", copy: "单发威力高且自带 3 次穿透，射速较慢，适合扎根和暴击。", damage: 2.55, fire: 2.35, speed: 1.35, size: 1.55, shots: 1, spread: 0, life: 1.6, pierce: 3, homing: 0, splash: 0, crit: .05 },
-    wand: { name: "共生法杖", tag: "追踪法球", copy: "发射缓慢追踪法球，作物光环效果提高，命中产生小范围魔力波。", damage: 1.15, fire: 1.38, speed: .68, size: 1.7, shots: 1, spread: 0, life: 2.1, pierce: 0, homing: 7, splash: 22, aura: 1.18 }
+    rifle: { name: "脉冲步枪", tag: "校准连射", copy: "每第 6 次射击自动发射金色过载弹，造成 2.2 倍伤害并额外穿透。", damage: 1, fire: 1, speed: 1, size: 1, shots: 1, spread: 0, life: 1.25, pierce: 0, homing: 0, splash: 0, overchargeEvery: 6 },
+    shotgun: { name: "孢子霰弹枪", tag: "贴脸孢爆", copy: "一次发射 5 枚孢子；在 165 距离内命中时额外造成 55% 伤害和小范围爆裂。", damage: .62, fire: 1.55, speed: .86, size: 1.12, shots: 5, spread: .52, life: .7, pierce: 0, homing: 0, splash: 0, pointBlank: 1.55 },
+    rail: { name: "根系轨道枪", tag: "贯穿蓄能", copy: "高伤贯穿；每贯穿一个目标，弹体伤害提高 18%，形成越穿越强的直线收割。", damage: 2.55, fire: 2.35, speed: 1.35, size: 1.55, shots: 1, spread: 0, life: 1.6, pierce: 3, homing: 0, splash: 0, crit: .05, railCharge: .18 },
+    wand: { name: "共生法杖", tag: "分芽法球", copy: "法球追踪且强化作物光环；首次命中会分裂出两枚较弱追踪芽弹。", damage: 1.15, fire: 1.38, speed: .68, size: 1.7, shots: 1, spread: 0, life: 2.1, pierce: 0, homing: 7, splash: 22, aura: 1.18, sprout: true },
+    scythe: { name: "月芽收割镰", tag: "初始近战", copy: "直接以近战开局；宽幅挥砍可击退敌群，作物种类会改变刀刃效果。", damage: 1.08, fire: 1, speed: 1, size: 1, shots: 0, spread: 0, life: 0, pierce: 0, homing: 0, splash: 0, melee: true, meleeRange: 122, meleeArc: 1.96, meleePower: 1.2, meleeRate: .4 }
   };
 
   const CROP_TYPES = [
@@ -289,6 +294,8 @@
       phase: "day",
       phaseTime: 0,
       day: 1,
+      wave: 1,
+      rewardWavesClaimed: {},
       spawnTimer: 1.2,
       score: 0,
       coins: 4,
@@ -359,6 +366,8 @@
       pollenGuidance: 0,
       harvestShieldLevel: 0,
       meleeHarvestRate: 0,
+      weaponShotCount: 0,
+      weaponMastery: 0,
       aiSpeechTime: 0,
       missionTime: 7,
       terrainCardTime: 7,
@@ -394,11 +403,11 @@
         harvestDamage: 1,
         ricochet: 0,
         homing: 0,
-        attackMode: "ranged",
-        meleeRange: 108,
-        meleeArc: 1.82,
-        meleePower: 1.16,
-        meleeRate: .43,
+        attackMode: weapon.melee ? "melee" : "ranged",
+        meleeRange: weapon.meleeRange || 108,
+        meleeArc: weapon.meleeArc || 1.82,
+        meleePower: weapon.meleePower || 1.16,
+        meleeRate: weapon.meleeRate || .43,
         stationaryCharge: 0,
         stationaryMax: 3,
         angle: -Math.PI / 2,
@@ -480,7 +489,7 @@
     return [
       { chapter: "序章 · 熄灯之后", title: "世界结束时，我们选了种田", speaker: "旁白", avatar: "▣", text: "末日第 417 天，城市电网彻底熄灭。避难所只剩最后一袋种子，和一名仍在运行的农务 AI。" },
       { chapter: `${character.code} · 记忆片段`, title: `与你同行的 ${character.name}`, speaker: character.name, avatar: character.skillIcon, text: personal },
-      { chapter: "生存协议 · 第一次广播", title: "五个夜晚，一次选择", speaker: "你", avatar: "◇", text: "远处还有四块能耕种的土地。我们带上种子和最后一把脉冲枪：白天播种，夜晚活下去，把末日变成下一个春天。" }
+      { chapter: "生存协议 · 第一次广播", title: "五日十五波，一次选择", speaker: "你", avatar: "◇", text: "远处还有四块能耕种的土地。选好武器与种子，在两场作战后的休整里经营农田，再守住当日终局，把末日变成下一个春天。" }
     ];
   }
 
@@ -529,6 +538,8 @@
     ui.end.classList.remove("victory");
     ui.pause.classList.add("hidden");
     ui.choice.classList.add("hidden");
+    ui.bossIntro.classList.add("hidden");
+    ui.fusion.classList.add("hidden");
     ui.restShop.classList.add("hidden");
     ui.hud.classList.remove("hidden");
     canvas.focus();
@@ -538,82 +549,117 @@
     ui.aiSpeech.querySelector("b").textContent = character.name;
     document.querySelector(".brand-mini span").textContent = `${character.code} ONLINE`;
     document.querySelector(".portrait b").textContent = character.code.split("-")[0];
-    showToast(`第一日 · ${character.name}开机`, "五日远征开始：成熟作物会直接改造附近弹丸");
+    showToast(`第一日 · ${character.name}开机`, "15 波远征开始：第 3、8 波为奖励关，成熟作物会改造武器");
     aiSay(character.line, 4.2);
   }
 
   function currentDuration() {
-    if (game.phase === "day") return 38;
     if (game.phase === "rest") return Infinity;
-    if ([2, 4, FINAL_DAY].includes(game.day)) return 999;
-    return 29;
+    if (BOSS_WAVES[game.wave]) return 999;
+    return REWARD_WAVES.has(game.wave) ? 18 : 23;
   }
 
-  function bossTypeForDay(day) {
-    if (day === 2) return "crowboss";
-    if (day === 4) return "slimeboss";
-    if (day === FINAL_DAY) return "boss";
-    return null;
-  }
+  function bossTypeForDay(day) { return BOSS_WAVES[day * 3] || null; }
+  function bossTypeForWave(wave = game.wave) { return BOSS_WAVES[wave] || null; }
+  function isRewardWave(wave = game.wave) { return REWARD_WAVES.has(wave); }
 
   function isBossType(type) { return type === "boss" || type === "crowboss" || type === "slimeboss"; }
   function bossDisplayName(enemy) { return enemy && enemy.variant ? `${enemy.variant.name} · ${ENEMY_DATA[enemy.type].bossName}` : ENEMY_DATA[enemy.type].bossName; }
 
-  function phaseTransition() {
-    if (game.phase === "day") {
-      game.phase = "rest";
-      game.phaseTime = 0;
-      game.enemies.forEach((enemy) => { if (!isBossType(enemy.type)) enemy.dead = true; });
-      game.enemies = game.enemies.filter((enemy) => !enemy.dead);
-      game.enemyBullets.length = 0;
-      game.hazards.length = 0;
-      rollMerchantStock(game.day === 1);
-      ui.restShop.classList.remove("hidden");
-      renderRestShop();
-      showToast(`第 ${game.day} 日 · 无限休整`, "害兽停止刷新；完成采购和播种后按 F 主动进入夜晚");
-      updateMission("休整、商店与播种", "没有时间限制；可购买四类种子、组合卡与随机强力道具");
-      aiSay("敌群撤退了！慢慢整理，准备好再按 F 叫它们回来。", 4);
-      sound.tone(360, .35, "triangle", .04, 140);
-    } else if (game.phase === "rest") {
-      game.phase = "night";
-      game.phaseTime = 0;
-      game.threatPulse = 1;
-      ui.restShop.classList.add("hidden");
-      sound.tone(150, .35, "sawtooth", .05, -60);
-      const bossType = bossTypeForDay(game.day);
-      if (bossType) {
-        const bossName = ENEMY_DATA[bossType].bossName;
-        showToast(`第 ${game.day} 夜 · ${bossName}来袭`, game.day === FINAL_DAY ? "最终首领：守住最后一块田" : "阶段首领：击败后进入下一日");
-        aiSay(game.day === FINAL_DAY ? "警告：体积超出可爱标准。批准全部火力！" : `发现阶段首领 ${bossName}，准备拆包！`, 4.5);
-        spawnBoss(bossType);
-      } else {
-        showToast(`第 ${game.day} 夜 · 饥群出巢`, "敌人会优先啃食成熟作物");
-        aiSay("夜间模式启动。谁碰庄稼，我就让谁重新投胎。", 4);
-      }
-    } else if (game.day < FINAL_DAY) {
-      if (!game.nightChestDays[game.day]) dropRelicChest(game.player.x + 55, game.player.y, game.day);
-      game.day++;
-      game.phase = "day";
-      game.phaseTime = 0;
-      game.boss = null;
-      game.bossSpawned = false;
-      game.player.hp = Math.min(game.player.maxHp, game.player.hp + 12);
-      game.water += 2;
-      game.coins += 4;
-      game.irrigation = { x: WORLD_W / 2, y: WORLD_H / 2 - 205, progress: 0, captured: false, contested: false };
-      updateTerrainUi();
-      renderRestShop();
-      showToast(`第 ${game.day} 日 · 土壤回温`, "补给：生命 +12，水 +2，生物质 +4；今日地形规则已轮换");
-      const beat = [
-        "活下来了。广播里出现了另一个避难所的呼号，可它只重复着我们的名字。",
-        "旧城天台还有土。那里的植物在没有人类照料后，学会了自己发光。",
-        "记录显示，首领都来自失控的农业设施。末日也许不是意外。",
-        "最后一夜。种子库就在枯穗暴君身后——那是明年，也是所有答案。"
-      ][Math.min(3, game.day - 2)];
-      aiSay(beat, 5.2);
-      updateMission(`第 ${game.day} 日生存记录`, beat);
-      showChoice("dawn");
+  function clearCombatField() {
+    game.enemies.forEach((enemy) => { if (!isBossType(enemy.type)) enemy.dead = true; });
+    game.enemies = game.enemies.filter((enemy) => !enemy.dead);
+    game.enemyBullets.length = 0;
+    game.hazards.length = 0;
+  }
+
+  function beginWave(wave) {
+    game.wave = wave;
+    game.day = Math.floor((wave - 1) / 3) + 1;
+    game.phase = wave % 3 === 0 ? "night" : "day";
+    game.phaseTime = 0;
+    game.spawnTimer = .65;
+    game.threatPulse = 1;
+    game.boss = null;
+    game.bossSpawned = false;
+    ui.restShop.classList.add("hidden");
+    ui.restShop.classList.remove("collapsed");
+    ui.shopToggle.textContent = "上拉收起 ▲";
+    ui.shopToggle.setAttribute("aria-expanded", "true");
+    const bossType = bossTypeForWave(wave);
+    if (bossType) {
+      const bossName = ENEMY_DATA[bossType].bossName;
+      showToast(`第 ${wave}/${TOTAL_WAVES} 波 · ${bossName}`, wave === TOTAL_WAVES ? "最终首领：守住最后一块田" : "阶段首领：击败后进入下一日");
+      aiSay(wave === TOTAL_WAVES ? "最终波！批准全部火力，也批准大声尖叫！" : `首领波 ${wave}：${bossName}，准备拆包！`, 4.5);
+      spawnBoss(bossType);
+    } else if (isRewardWave(wave)) {
+      game.player.shield = Math.max(game.player.shield, 16);
+      showToast(`奖励波 ${wave}/${TOTAL_WAVES} · 丰收快递`, "敌群更弱、弹幕怪停工；撑过本波获得种子、水、生物质与治疗");
+      updateMission("奖励关 · 轻松收菜", `第 ${wave} 波难度降低，完成后获得整套农务补给`);
+      aiSay("奖励关来了！害兽今天只负责把快递送到门口。", 4);
+      sound.level();
+    } else {
+      showToast(`第 ${wave}/${TOTAL_WAVES} 波`, game.phase === "night" ? "夜间守田：作物可能成为攻击目标" : "白昼探索：培育作物并回收资源");
     }
+  }
+
+  function enterRest() {
+    game.phase = "rest";
+    game.phaseTime = 0;
+    clearCombatField();
+    rollMerchantStock(game.day === 1);
+    ui.restShop.classList.remove("hidden", "collapsed");
+    ui.shopToggle.textContent = "上拉收起 ▲";
+    ui.shopToggle.setAttribute("aria-expanded", "true");
+    renderRestShop();
+    showToast(`第 ${game.day} 日 · 无限休整`, `下一波 ${game.wave + 1}/${TOTAL_WAVES}；完成采购和播种后按 F`);
+    updateMission("休整、商店与播种", "商店可上拉收起；没有时间限制，准备完成后主动开始下一波");
+    aiSay("敌群撤退了！商店也能收起来，先看看我们辛苦种出的脸。", 4);
+    sound.tone(360, .35, "triangle", .04, 140);
+  }
+
+  function grantRewardWave(wave) {
+    if (!isRewardWave(wave) || game.rewardWavesClaimed[wave]) return;
+    game.rewardWavesClaimed[wave] = true;
+    game.coins += 8;
+    game.water += 3;
+    game.player.hp = Math.min(game.player.maxHp, game.player.hp + 18);
+    for (const index of game.carriedSeeds) game.seeds[index] += 2;
+    addOverclock(45);
+    showToast(`奖励波 ${wave} 完成`, "生命 +18，水 +3，生物质 +8，四类携带种子各 +2");
+    ringEffect(game.player.x, game.player.y, "#ffe36f", 240);
+    burst(game.player.x, game.player.y, "#fff0a2", 32, 230);
+    sound.level();
+  }
+
+  function advanceToNextDay() {
+    grantRewardWave(game.wave);
+    if (!game.nightChestDays[game.day]) dropRelicChest(game.player.x + 55, game.player.y, game.day);
+    const nextWave = game.wave + 1;
+    beginWave(nextWave);
+    game.player.hp = Math.min(game.player.maxHp, game.player.hp + 12);
+    game.water += 2;
+    game.coins += 4;
+    game.irrigation = { x: WORLD_W / 2, y: WORLD_H / 2 - 205, progress: 0, captured: false, contested: false };
+    updateTerrainUi();
+    renderRestShop();
+    const beat = [
+      "活下来了。广播里出现了另一个避难所的呼号，可它只重复着我们的名字。",
+      "旧城天台还有土。那里的植物在没有人类照料后，学会了自己发光。",
+      "记录显示，首领都来自失控的农业设施。末日也许不是意外。",
+      "最后三波。种子库就在枯穗暴君身后——那是明年，也是所有答案。"
+    ][Math.min(3, game.day - 2)];
+    aiSay(beat, 5.2);
+    updateMission(`第 ${game.day} 日 · 第 ${game.wave} 波`, beat);
+    showChoice("dawn");
+  }
+
+  function phaseTransition() {
+    if (game.phase === "rest") { beginWave(game.wave + 1); return; }
+    grantRewardWave(game.wave);
+    if (game.wave % 3 === 1) beginWave(game.wave + 1);
+    else if (game.wave % 3 === 2) enterRest();
+    else if (game.wave < TOTAL_WAVES) advanceToNextDay();
   }
 
   function updateTerrainUi() {
@@ -964,14 +1010,15 @@
   function createEnemy(type, x, y) {
     const d = ENEMY_DATA[type];
     const scale = 1 + game.elapsed * .0038 + (game.day - 1) * .13;
-    const hpScale = isBossType(type) ? 1 : scale;
+    const rewardScale = isRewardWave() && !isBossType(type) ? .62 : 1;
+    const hpScale = isBossType(type) ? 1 : scale * rewardScale;
     const enemy = {
       type, x, y, vx: 0, vy: 0,
       radius: d.radius,
       hp: d.hp * hpScale,
       maxHp: d.hp * hpScale,
-      speed: d.speed * (1 + (game.day - 1) * .035),
-      damage: d.damage * (1 + (game.day - 1) * .09),
+      speed: d.speed * (1 + (game.day - 1) * .035) * (isRewardWave() ? .75 : 1),
+      damage: d.damage * (1 + (game.day - 1) * .09) * (isRewardWave() ? .3 : 1),
       xp: d.xp,
       color: d.color,
       hit: 0,
@@ -986,7 +1033,7 @@
     };
     if (!isBossType(type)) {
       discoverEntry(`enemy:${type}`, 1);
-      const eliteChance = Math.min(.19, .055 + game.day * .025);
+      const eliteChance = isRewardWave() ? 0 : Math.min(.19, .055 + game.day * .025);
       if (chance(eliteChance)) {
         const available = ELITE_AFFIXES.filter((affix) => affix.id !== "blight" || game.day >= 3);
         const affix = available[Math.floor(Math.random() * available.length)];
@@ -1001,6 +1048,7 @@
   }
 
   function enemySpawnPool(day = game.day) {
+    if (isRewardWave()) return day >= 3 ? ["mite", "mite", "mite", "boar", "leech"] : ["mite", "mite", "mite", "mite", "boar"];
     const pool = ["mite", "mite", "mite", "mite", "mite", "mite", "spitter"];
     if (day >= 2) pool.push("boar", "boar", "boar", "wasp", "wasp");
     if (day >= 3) pool.push("leech", "leech", "glitch", "thief");
@@ -1022,8 +1070,8 @@
       y = clamp(game.player.y + Math.sin(a) * radius, 28, WORLD_H - 28);
     }
     const enemy = createEnemy(type, x, y);
-    if (game.phase === "night" && type === "thief") enemy.targetPlot = getVulnerablePlot(true);
-    else if (game.phase === "night" && enemyCanAttackCrops(enemy) && chance(type === "mite" ? .62 : .35)) {
+    if (game.phase === "night" && !isRewardWave() && type === "thief") enemy.targetPlot = getVulnerablePlot(true);
+    else if (game.phase === "night" && !isRewardWave() && enemyCanAttackCrops(enemy) && chance(type === "mite" ? .62 : .35)) {
       enemy.targetPlot = getVulnerablePlot();
     }
     game.enemies.push(enemy);
@@ -1097,14 +1145,15 @@
       }
     }
 
-    if (game.phaseTime >= currentDuration() && !(game.phase === "night" && bossTypeForDay(game.day))) phaseTransition();
+    if (game.phaseTime >= currentDuration() && !bossTypeForWave()) phaseTransition();
 
     const timePressure = Math.log1p(game.elapsed / 35) * 2.8 + Math.sqrt(game.elapsed / 60) * 1.4;
-    const maxEnemies = Math.round((game.phase === "night" ? 12 : 7) + timePressure + (game.day - 1) * 2);
+    const rewardWave = isRewardWave();
+    const maxEnemies = Math.round((rewardWave ? 3 : game.phase === "night" ? 12 : 7) + timePressure * (rewardWave ? .2 : 1) + (game.day - 1) * (rewardWave ? .25 : 2));
     if (game.phase !== "rest" && game.spawnTimer <= 0 && game.enemies.length < maxEnemies && !(game.boss && game.boss.enter > 0)) {
       spawnEnemy();
       const pressure = 1 + Math.log1p(game.elapsed / 60) * .32 + (game.day - 1) * .07;
-      game.spawnTimer = (game.phase === "night" ? rand(.86, 1.22) : rand(1.45, 2.05)) / pressure;
+      game.spawnTimer = (rewardWave ? rand(2.2, 2.8) : game.phase === "night" ? rand(.86, 1.22) : rand(1.45, 2.05)) / pressure;
     }
 
     updatePlayer(dt);
@@ -1340,7 +1389,7 @@
   }
 
   function updateRandomEvents(dt) {
-    if (game.phase === "rest") return;
+    if (game.phase === "rest" || isRewardWave()) return;
     if (game.eventTime > 0) {
       game.eventTime -= dt;
       game.eventBannerTime -= dt;
@@ -1415,6 +1464,9 @@
     const hybrids = activeHybrids();
     const auraBoost = activeMutationBoost();
     if (p.attackMode === "melee") { swingMelee(auras, auraBoost); return; }
+    game.weaponShotCount++;
+    const overchargeEvery = game.weapon === "rifle" && game.weaponMastery >= 3 ? 5 : weapon.overchargeEvery;
+    const overchargeShot = Boolean(overchargeEvery && game.weaponShotCount % overchargeEvery === 0);
     const cloneShots = auras.has("clone") ? (game.fusions.mirrorgarden ? 2 : 1) : 0;
     const linkedShots = game.bloomShotLevel ? Math.min(game.bloomShotLevel, Math.floor(auras.size / 2) + (game.harvestMomentum >= 3 ? 1 : 0)) : 0;
     const count = weapon.shots + (p.multishot - 1) + cloneShots + linkedShots + (game.cloneTime > 0 ? 1 : 0);
@@ -1423,25 +1475,31 @@
       const a = p.angle - totalSpread / 2 + (count === 1 ? 0 : (totalSpread * i) / (count - 1));
       const hybridCrit = hybrids.has("sunpepper") ? .08 : hybrids.has("prismpea") ? .1 : 0;
       const crit = chance(p.crit + (auras.has("sun") ? .18 : 0) + hybridCrit);
+      const overcharged = overchargeShot && i === Math.floor(count / 2);
       game.bullets.push({
         x: p.x + Math.cos(a) * 20,
         y: p.y + Math.sin(a) * 20,
         vx: Math.cos(a) * p.bulletSpeed,
         vy: Math.sin(a) * p.bulletSpeed,
-        radius: p.bulletSize + (crit ? 1.5 : 0),
-        damage: p.damage * auraBoost * combatCropMultiplier(false) * stanceDamageMultiplier() * (crit ? 1.75 : 1),
-        life: weapon.life,
-        pierce: p.pierce + weapon.pierce + (auras.has("thorn") ? 1 : 0) + (hybrids.has("railpea") ? 1 : 0),
+        radius: p.bulletSize + (crit ? 1.5 : 0) + (overcharged ? 3 : 0),
+        damage: p.damage * auraBoost * combatCropMultiplier(false) * stanceDamageMultiplier() * (crit ? 1.75 : 1) * (overcharged ? 2.2 + game.weaponMastery * .18 : 1),
+        life: weapon.life + (game.weapon === "rail" ? game.weaponMastery * .12 : 0),
+        pierce: p.pierce + weapon.pierce + (auras.has("thorn") ? 1 : 0) + (hybrids.has("railpea") ? 1 : 0) + (overcharged ? 2 + game.weaponMastery : 0),
         ricochet: p.ricochet + ((auras.has("pepper") || auras.has("clone") || game.harvestMomentum >= 3) ? game.vineRicochet : 0),
         homing: p.homing + weapon.homing + ((auras.has("magnet") || auras.has("clone") || game.harvestMomentum >= 2) ? game.pollenGuidance : 0) + (auras.has("magnet") ? 4.2 * game.magnetPower : 0) + (game.fusions.stormseek && (auras.has("magnet") || game.harvestMomentum) ? 4 : 0) + (hybrids.has("railpea") ? 4 : 0),
         splash: (auras.has("pepper") ? 58 * game.pepperRadius * auraBoost : 0) + weapon.splash + (hybrids.has("sunpepper") ? 25 : 0),
         frost: (auras.has("mint") ? 1.9 * game.mintPower * auraBoost : 0) + (hybrids.has("steampepper") ? 1.05 : 0),
-        cropColor: auras.size ? CROP_TYPES.find((crop) => auras.has(crop.id)).color : null,
+        cropColor: overcharged ? "#ffe369" : auras.size ? CROP_TYPES.find((crop) => auras.has(crop.id)).color : null,
+        weapon: game.weapon,
+        overcharged,
+        sprouted: false,
+        isSprout: false,
         crit,
         dead: false
       });
     }
-    game.particles.push({ x: p.x + Math.cos(p.angle) * 23, y: p.y + Math.sin(p.angle) * 23, vx: Math.cos(p.angle) * 60, vy: Math.sin(p.angle) * 60, life: .1, maxLife: .1, size: 9, color: "#ffe49a", alpha: 1, shape: "flash" });
+    game.particles.push({ x: p.x + Math.cos(p.angle) * 23, y: p.y + Math.sin(p.angle) * 23, vx: Math.cos(p.angle) * 60, vy: Math.sin(p.angle) * 60, life: overchargeShot ? .18 : .1, maxLife: overchargeShot ? .18 : .1, size: overchargeShot ? 17 : 9, color: overchargeShot ? "#ffe369" : "#ffe49a", alpha: 1, shape: "flash" });
+    if (overchargeShot) { ringEffect(p.x, p.y, "#ffe369", 54); sound.tone(520, .07, "square", .035, 180); }
     sound.shoot();
   }
 
@@ -1532,14 +1590,36 @@
         if (e.dead || b.dead || b.hitTargets.has(e)) continue;
         if (Math.hypot(b.x - e.x, b.y - e.y) < b.radius + e.radius) {
           b.hitTargets.add(e);
-          damageEnemy(e, b.damage, b.crit);
+          const pointBlank = b.weapon === "shotgun" && dist(game.player, e) <= 165 + game.weaponMastery * 18;
+          const hitDamage = b.damage * (pointBlank ? WEAPONS.shotgun.pointBlank + game.weaponMastery * .12 : 1);
+          damageEnemy(e, hitDamage, b.crit || pointBlank);
+          if (pointBlank) {
+            burst(e.x, e.y, "#ffb17f", 4 + game.weaponMastery, 90);
+            for (const other of game.enemies) if (other !== e && !other.dead && dist(other, e) < 28 + game.weaponMastery * 5) damageEnemy(other, hitDamage * .14, false);
+          }
+          if (b.weapon === "rail" && !e.dead) {
+            b.damage *= 1 + WEAPONS.rail.railCharge + game.weaponMastery * .04;
+            b.radius = Math.min(15, b.radius + .7);
+            burst(e.x, e.y, "#77ecf1", 3, 110);
+          }
+          if (b.weapon === "wand" && !b.sprouted && !b.isSprout) {
+            b.sprouted = true;
+            const sproutCount = 2 + (game.weaponMastery >= 3 ? 1 : 0);
+            const speed = Math.hypot(b.vx, b.vy) * .88;
+            const base = Math.atan2(b.vy, b.vx);
+            for (let i = 0; i < sproutCount; i++) {
+              const angle = base + (i - (sproutCount - 1) / 2) * .48;
+              game.bullets.push({ ...b, x: e.x, y: e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: Math.max(3, b.radius * .68), damage: b.damage * (.42 + game.weaponMastery * .08), life: 1.2, pierce: 0, ricochet: 0, homing: 8 + game.weaponMastery, splash: 0, crit: false, hitTargets: new Set([e]), isSprout: true, sprouted: true, dead: false });
+            }
+            ringEffect(e.x, e.y, "#9bf4c9", 42);
+          }
           if (b.frost && !e.dead) {
             e.frozen = Math.max(e.frozen || 0, b.frost);
             burst(e.x, e.y, "#8be0ff", 5, 70);
           }
           if (b.splash) {
             ringEffect(e.x, e.y, "#ff765f", b.splash);
-            for (const other of game.enemies) if (other !== e && !other.dead && dist(other, e) < b.splash) damageEnemy(other, b.damage * .36, false);
+            for (const other of game.enemies) if (other !== e && !other.dead && dist(other, e) < b.splash) damageEnemy(other, hitDamage * .36, false);
           }
           const bounceTarget = b.ricochet > 0 ? nearestEnemy(e.x, e.y, 310, e) : null;
           if (bounceTarget) {
@@ -1626,6 +1706,7 @@
     for (let i = 0; i < xpPieces; i++) dropPickup("xp", enemy.x, enemy.y, enemy.xp / xpPieces);
     if (chance(.18 + game.dropLuck)) dropPickup("water", enemy.x + rand(-9, 9), enemy.y + rand(-9, 9), 1);
     if (chance(.42 + game.dropLuck)) dropPickup("coin", enemy.x + rand(-12, 12), enemy.y + rand(-12, 12), 1);
+    if (isRewardWave() && chance(.72)) dropPickup("coin", enemy.x + rand(-14, 14), enemy.y + rand(-14, 14), 1);
     const cloneCrop = game.plots.find((plot) => plot.state === "ready" && CROP_TYPES[plot.crop].id === "clone");
     if (cloneCrop && chance(cloneCrop.mutation ? .28 : .13)) dropPickup("xp", enemy.x + rand(-18, 18), enemy.y + rand(-18, 18), enemy.xp * .55);
   }
@@ -2423,7 +2504,7 @@
     game.pendingChoice = "relic";
     ui.choiceEyebrow.textContent = "必掉关键遗物";
     ui.choiceTitle.textContent = "选择一项底层参数改造";
-    ui.choiceSubtitle.textContent = "遗物只在每夜宝箱出现；基础属性不会混入普通插件池";
+    ui.choiceSubtitle.textContent = "遗物只在每日终局宝箱出现；基础属性不会混入普通插件池";
     ui.choiceCards.innerHTML = "";
     const pool = RELICS.filter((relic) => !game.relics[relic.id]);
     const chosen = [];
@@ -2461,15 +2542,19 @@
 
   const ITEMS = [
     { id: "spark", icon: "⚡", type: "收获插件", name: "光合节拍器", max: 3, color: "#ffca64", desc: () => "每层丰收动能额外缩短射击与挥砍间隔。", detail: "必须先收获作物才能获得攻速；满级可与豌豆训练融合。", apply: () => game.harvestTempoPower += .012 },
-    { id: "split", icon: "⋔", type: "混种插件", name: "双生芽孢", max: 2, color: "#ff9c78", desc: () => "附近每存在两类成熟作物，可获得额外弹丸。", detail: "没有成熟作物时不提供直接火力。", apply: () => game.bloomShotLevel++ },
-    { id: "bounce", icon: "↝", type: "藤蔓插件", name: "弹射藤蔓", max: 2, color: "#ef8eb7", desc: () => "辣椒、模仿菇光环或高丰收动能使弹丸额外弹射。", detail: "满级可与辣椒燃烧芯融合。", apply: () => game.vineRicochet++ },
-    { id: "homing", icon: "⌁", type: "花粉插件", name: "导航花粉", max: 3, color: "#83d8dc", desc: () => "磁力菇、模仿菇光环或丰收动能赋予追踪。", detail: "追踪能力必须由作物激活。", apply: () => game.pollenGuidance += 2.8 },
-    { id: "pepper", icon: "◆", type: "作物插件", name: "辣椒燃烧芯", max: 3, color: "#ff7180", desc: () => "火爆辣椒横扫宽度 +22%，收获收益 +3%。", detail: "满级可与弹射藤蔓或收割镰刀融合。", apply: () => { game.pepperRadius *= 1.22; game.cropYield *= 1.03; } },
+    { id: "split", icon: "⋔", type: "混种插件", name: "双生芽孢", max: 2, ranged: true, color: "#ff9c78", desc: () => "附近每存在两类成熟作物，可获得额外弹丸。", detail: "仅进入枪械与法杖池；没有成熟作物时不提供直接火力。", apply: () => game.bloomShotLevel++ },
+    { id: "bounce", icon: "↝", type: "藤蔓插件", name: "弹射藤蔓", max: 2, ranged: true, color: "#ef8eb7", desc: () => "辣椒、模仿菇光环或高丰收动能使弹丸额外弹射。", detail: "仅强化远程弹体；满级可与辣椒燃烧芯融合。", apply: () => game.vineRicochet++ },
+    { id: "homing", icon: "⌁", type: "花粉插件", name: "导航花粉", max: 3, ranged: true, color: "#83d8dc", desc: () => "磁力菇、模仿菇光环或丰收动能赋予追踪。", detail: "仅进入远程池，追踪能力必须由作物激活。", apply: () => game.pollenGuidance += 2.8 },
+    { id: "pepper", icon: "◆", type: "作物插件", name: "辣椒燃烧芯", max: 3, color: "#ff7180", desc: () => "火爆辣椒横扫宽度 +22%，收获收益 +3%。", detail: "满级可与弹射藤蔓或月芽磨盘融合。", apply: () => { game.pepperRadius *= 1.22; game.cropYield *= 1.03; } },
     { id: "sun", icon: "●", type: "作物插件", name: "阳光缓存", max: 3, color: "#ffe06d", desc: () => "向日葵治疗、护盾与阳光收益提高 24%。", detail: "满级可与果皮防火墙融合。", apply: () => game.sunPower *= 1.24 },
     { id: "thorn", icon: "✦", type: "作物插件", name: "豌豆训练", max: 3, color: "#83db82", desc: () => "豌豆炮伤害和收获急射时长 +32%。", detail: "满级可与光合节拍器融合。", apply: () => game.thornPower *= 1.32 },
     { id: "shield", icon: "♡", type: "收获插件", name: "果皮防火墙", max: 2, color: "#92c8ff", desc: () => "每次收获恢复少量护盾。", detail: "护盾来源转移到种植循环，无法安装后直接获得。", apply: () => game.harvestShieldLevel++ },
-    { id: "blade", icon: "☾", type: "近战核心", name: "收割镰刀", max: 3, color: "#ff9f6d", desc: (level) => level === 1 ? "攻击改为宽幅近战挥砍；成熟作物与丰收动能会显著放大伤害。" : "挥砍范围 +10，近战倍率 +12%。", detail: "基础范围、攻速和倍率已加强；满级可与辣椒燃烧芯融合。", apply: (level) => { game.player.attackMode = "melee"; if (level > 1) { game.player.meleeRange += 10; game.player.meleePower *= 1.12; } } },
-    { id: "whetstone", icon: "▲", type: "近战农具", name: "丰收磨刀石", max: 3, color: "#f4c06d", desc: () => "丰收动能额外提高挥砍速度，扇形角度 +6%。", detail: "先收获再贴身，近战节奏才会完全启动。", apply: () => { game.meleeHarvestRate += .012; game.player.meleeArc *= 1.06; } },
+    { id: "riflemod", icon: "▸", type: "步枪专精", name: "过载电容", max: 3, weapon: "rifle", color: "#ff6e96", desc: () => "过载弹伤害与穿透提高，第 3 级改为每第 5 次射击触发。", detail: "只会在选择脉冲步枪时出现。", apply: () => game.weaponMastery++ },
+    { id: "shotgunmod", icon: "≋", type: "霰弹专精", name: "菌盖收束器", max: 3, weapon: "shotgun", color: "#e98b67", desc: () => "贴脸孢爆伤害提高，并扩大有效距离。", detail: "只会在选择孢子霰弹枪时出现。", apply: () => game.weaponMastery++ },
+    { id: "railmod", icon: "━", type: "轨道枪专精", name: "根轨电感", max: 3, weapon: "rail", color: "#6bc7d1", desc: () => "每次贯穿后的伤害成长提高，额外增加弹体寿命。", detail: "只会在选择根系轨道枪时出现。", apply: () => { game.weaponMastery++; game.player.pierce++; } },
+    { id: "wandmod", icon: "✧", type: "法杖专精", name: "分芽棱镜", max: 3, weapon: "wand", color: "#a887de", desc: () => "分芽追踪弹伤害提高，第 3 级额外分出一枚芽弹。", detail: "只会在选择共生法杖时出现。", apply: () => game.weaponMastery++ },
+    { id: "scythecore", icon: "☾", type: "镰刀专精", name: "月芽磨盘", max: 3, weapon: "scythe", melee: true, color: "#ff9f6d", desc: () => "挥砍范围 +10，近战倍率 +10%，并强化作物刀刃。", detail: "月芽收割镰从开局即可使用；满级可与辣椒燃烧芯融合。", apply: () => { game.weaponMastery++; game.player.meleeRange += 10; game.player.meleePower *= 1.1; } },
+    { id: "whetstone", icon: "▲", type: "镰刀农具", name: "丰收磨刀石", max: 3, weapon: "scythe", melee: true, color: "#f4c06d", desc: () => "丰收动能额外提高挥砍速度，扇形角度 +6%。", detail: "只进入月芽收割镰的升级池；先收获再贴身。", apply: () => { game.meleeHarvestRate += .012; game.player.meleeArc *= 1.06; } },
     { id: "anchor", icon: "⌑", type: "不动流核心", name: "扎根协议", max: 3, color: "#78d6a3", desc: () => "靠近成熟作物或拥有丰收动能时，静止 3 秒蓄满并提高攻防。", detail: "离开农田会失去蓄力；满级可与量子水壶合成固定炮台。", apply: () => {} },
     { id: "brace", icon: "⊥", type: "不动流农具", name: "根系反冲架", max: 2, color: "#8ec8e8", desc: () => "缩短扎根蓄力时间，让农田阵地更快成型。", detail: "只改善扎根手感，不提供脱离作物的额外火力。", apply: () => { game.player.stationaryMax = Math.max(2.2, game.player.stationaryMax - .25); } },
     { id: "drone", icon: "◎", type: "伙伴插件", name: "守田无人机", max: 3, color: "#ae9bff", desc: () => "成熟作物在附近或拥有丰收动能时，无人机自动索敌。", detail: "离开农田且动能耗尽后停火；满级可与量子水壶融合。", apply: () => game.droneLevel++ },
@@ -2495,7 +2580,7 @@
     { id: "stormseek", name: "磁暴追猎协议", icon: "⌁", color: "#5fd0db", req: { magnetplant: 3, homing: 3 }, copy: "磁菇线圈 LV.3 × 导航花粉 LV.3", effect: "所有弹丸获得强追踪，磁力菇收获牵引资源并清弹" },
     { id: "permafrost", name: "永冻叶轮", icon: "❉", color: "#7fcff2", req: { mintplant: 3, orbit: 3 }, copy: "寒冰菌核 LV.3 × 环绕叶刃 LV.3", effect: "叶刃持续冻结敌人，寒冰菇收获造成全图碎冰伤害" },
     { id: "mirrorgarden", name: "镜像农场集群", icon: "♊", color: "#bd8df2", req: { cloneplant: 3, drone: 3 }, copy: "模仿菌丝 LV.3 × 守田无人机 LV.3", effect: "模仿光环额外多发，无人机永久增加一发镜像弹" },
-    { id: "reaper", name: "生命收割回路", icon: "☽", color: "#ff9f6d", req: { blade: 3, pepper: 3 }, copy: "收割镰刀 LV.3 × 辣椒燃烧芯 LV.3", effect: "辣椒农能扩展挥砍范围，命中多个目标时恢复生命" },
+    { id: "reaper", name: "生命收割回路", icon: "☽", color: "#ff9f6d", req: { scythecore: 3, pepper: 3 }, copy: "月芽磨盘 LV.3 × 辣椒燃烧芯 LV.3", effect: "辣椒农能扩展挥砍范围，命中多个目标时恢复生命" },
     { id: "turret", name: "固定丰收炮台", icon: "⌂", color: "#79d6a3", req: { anchor: 3, growth: 2 }, copy: "扎根协议 LV.3 × 量子水壶 LV.2", effect: "靠近成熟作物蓄满后额外增伤并持续恢复护盾" }
   ];
 
@@ -2507,6 +2592,13 @@
   function itemMatchesLoadout(item) {
     const required = LOADOUT_ITEM_REQUIREMENTS[item.id];
     return !required || required.some((index) => game.carriedSeeds.includes(index));
+  }
+
+  function itemMatchesWeapon(item) {
+    if (item.weapon && item.weapon !== game.weapon) return false;
+    if (item.melee && game.player.attackMode !== "melee") return false;
+    if (item.ranged && game.player.attackMode !== "ranged") return false;
+    return true;
   }
 
   function showChoice(mode) {
@@ -2521,14 +2613,14 @@
     ui.choiceCards.innerHTML = "";
     const pool = milestone
       ? STAT_TALENTS.filter((item) => (game.statTalents[item.id] || 0) < item.max)
-      : ITEMS.filter((item) => itemMatchesLoadout(item) && (!item.character || item.character === game.character) && (game.items[item.id] || 0) < item.max);
+      : ITEMS.filter((item) => itemMatchesLoadout(item) && itemMatchesWeapon(item) && (!item.character || item.character === game.character) && (game.items[item.id] || 0) < item.max);
     const chosen = [];
     if (!milestone && mode === "dawn") {
       const exclusive = pool.find((item) => item.character === game.character);
       if (exclusive) chosen.push(exclusive);
     }
-    if (!milestone && mode === "level" && !game.items.blade && !game.items.anchor) {
-      const core = pool.find((item) => item.id === (chance(.5) ? "blade" : "anchor"));
+    if (!milestone && mode === "level" && !game.items.anchor && chance(.32)) {
+      const core = pool.find((item) => item.id === "anchor");
       if (core) chosen.push(core);
     }
     const levels = milestone ? game.statTalents : game.items;
@@ -2623,7 +2715,7 @@
     const comboCards = COMBO_PLANTS.filter((combo) => game.comboCards[combo.id]);
     const statTalents = STAT_TALENTS.filter((item) => game.statTalents[item.id]);
     const merchantItems = MERCHANT_ITEMS.filter((item) => game.merchantOwned[item.id] && item.id !== "shovel");
-    const weaponIcon = game.weapon === "wand" ? "✧" : game.weapon === "rail" ? "━" : game.weapon === "shotgun" ? "≋" : "▸";
+    const weaponIcon = game.weapon === "scythe" ? "☾" : game.weapon === "wand" ? "✧" : game.weapon === "rail" ? "━" : game.weapon === "shotgun" ? "≋" : "▸";
     ui.buildItems.innerHTML = `<span class="build-item fused" title="主武器：${WEAPONS[game.weapon].name}" style="--item-color:#df7898">${weaponIcon}<b>W</b></span>` + relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`).join("") + merchantItems.map((item) => `<span class="build-item" title="商店：${item.name}" style="--item-color:#f0c47c">${item.icon}<b>商</b></span>`).join("") + statTalents.map((item) => `<span class="build-item" title="属性：${item.name} LV.${game.statTalents[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.statTalents[item.id]}</b></span>`).join("") + comboCards.map((combo) => `<span class="build-item fused" title="组合卡：${combo.name}" style="--item-color:${combo.color}">${combo.icon}<b>卡</b></span>`).join("") + owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`).join("") + fused.map((fusion) => `<span class="build-item fused" title="融合：${fusion.name}">${fusion.icon}<b>★</b></span>`).join("");
   }
 
@@ -2842,23 +2934,32 @@
 
     const night = game.phase === "night";
     const resting = game.phase === "rest";
-    ui.phaseLabel.textContent = `第 ${game.day}/${FINAL_DAY} ${night ? "夜" : resting ? "休整" : "日"} · ${night ? (bossTypeForDay(game.day) ? "首领" : "守田") : resting ? "采购播种" : "探索"}`;
-    ui.phaseIcon.textContent = night ? "☾" : resting ? "♨" : "☀";
+    const rewardWave = isRewardWave();
+    const activeRewardWave = rewardWave && !resting;
+    const shownWave = resting ? Math.min(TOTAL_WAVES, game.wave + 1) : game.wave;
+    ui.phaseLabel.textContent = `第 ${game.day}/${FINAL_DAY} 日 · 波次 ${shownWave}/${TOTAL_WAVES} · ${resting ? "休整" : bossTypeForWave() ? "首领" : rewardWave ? "奖励关" : night ? "守田" : "探索"}`;
+    ui.phaseIcon.textContent = resting ? "♨" : activeRewardWave ? "◆" : night ? "☾" : "☀";
+    ui.hud.classList.toggle("reward-wave", activeRewardWave);
+    if (!ui.wavePips.children.length) ui.wavePips.innerHTML = Array.from({ length: TOTAL_WAVES }, (_, index) => `<i title="第 ${index + 1} 波"></i>`).join("");
+    [...ui.wavePips.children].forEach((pip, index) => {
+      const wave = index + 1;
+      pip.className = `${wave < shownWave ? "done " : ""}${wave === shownWave ? "current " : ""}${REWARD_WAVES.has(wave) ? "reward " : ""}${BOSS_WAVES[wave] ? "boss" : ""}`.trim();
+    });
     const dur = currentDuration();
-    if (night && bossTypeForDay(game.day) && game.boss) {
+    if (bossTypeForWave() && game.boss) {
       ui.clockText.textContent = game.day === FINAL_DAY ? "决 战" : "首 领";
       ui.phaseFill.style.width = `${clamp(game.boss.hp / game.boss.maxHp, 0, 1) * 100}%`;
       ui.threat.textContent = `${bossDisplayName(game.boss)} · ${Math.ceil(Math.max(0, game.boss.hp))} HP`;
     } else if (resting) {
       ui.clockText.textContent = "不限时";
       ui.phaseFill.style.width = "100%";
-      ui.threat.textContent = "安全休整 · 切换种子、采购、播种，准备好后按 F 入夜";
+      ui.threat.textContent = "安全休整 · 切换种子、采购、播种，准备好后按 F 开始下一波";
     } else {
       ui.clockText.textContent = formatTime(dur - game.phaseTime);
       ui.phaseFill.style.width = `${clamp(1 - game.phaseTime / dur, 0, 1) * 100}%`;
-      ui.threat.textContent = night ? "威胁高涨 · 只有特定害兽会攻击作物" : resting ? "安全窗口 · 购买种子并布置农田" : game.day === FINAL_DAY ? "最后的白昼" : "探索大地图 · 收集生物质与经验";
+      ui.threat.textContent = activeRewardWave ? "奖励关 · 低压敌群与额外掉落" : night ? "威胁高涨 · 只有特定害兽会攻击作物" : game.day === FINAL_DAY ? "最后的白昼" : "探索大地图 · 收集生物质与经验";
     }
-    ui.phaseFill.style.background = night ? "linear-gradient(90deg, #69578f, #c1709a)" : resting ? "linear-gradient(90deg, #58baa1, #9be4b2)" : "linear-gradient(90deg, #f7a947, #f8d66d)";
+    ui.phaseFill.style.background = activeRewardWave ? "linear-gradient(90deg, #f1b34c, #fff48b)" : night ? "linear-gradient(90deg, #69578f, #c1709a)" : resting ? "linear-gradient(90deg, #58baa1, #9be4b2)" : "linear-gradient(90deg, #f7a947, #f8d66d)";
   }
 
   function draw() {
@@ -2948,12 +3049,30 @@
 
   function drawWorldScenery(t) {
     const night = game.phase === "night";
-    ctx.fillStyle = night ? "#657b7b" : "#9bd18d";
+    const ground = ctx.createLinearGradient(0, 0, WORLD_W, WORLD_H);
+    ground.addColorStop(0, night ? "#566b70" : "#a7d99b");
+    ground.addColorStop(.48, night ? "#697a72" : "#8fc989");
+    ground.addColorStop(1, night ? "#4e6269" : "#79b982");
+    ctx.fillStyle = ground;
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    for (let i = 0; i < scenery.length; i += 7) {
+      const s = scenery[i];
+      ctx.fillStyle = night ? (i % 14 ? "#72837c38" : "#384f5b35") : (i % 14 ? "#c4df8738" : "#4e96673a");
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, 38 + s.size * 5, 18 + s.size * 3, (s.x + s.y) * .001, 0, TAU); ctx.fill();
+      if (i % 21 === 0) {
+        ctx.fillStyle = night ? "#59606c" : "#7f8974"; ctx.strokeStyle = night ? "#9295a5" : "#c8c6aa"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(s.x - 13, s.y + 6); ctx.lineTo(s.x - 4, s.y - 10); ctx.lineTo(s.x + 13, s.y - 7); ctx.lineTo(s.x + 18, s.y + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+    }
     ctx.strokeStyle = night ? "#d5d7f21c" : "#ffffff22";
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); ctx.stroke(); }
     for (let y = 0; y <= WORLD_H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); ctx.stroke(); }
+    ctx.save();
+    ctx.strokeStyle = night ? "#88919255" : "#e5c99570"; ctx.lineWidth = 34; ctx.lineCap = "round"; ctx.setLineDash([22, 14]);
+    ctx.beginPath(); ctx.moveTo(FIELD_ZONES[1].x, FIELD_ZONES[1].y); ctx.quadraticCurveTo(WORLD_W / 2, 560, FIELD_ZONES[0].x, FIELD_ZONES[0].y); ctx.quadraticCurveTo(1510, 810, FIELD_ZONES[3].x, FIELD_ZONES[3].y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(FIELD_ZONES[0].x, FIELD_ZONES[0].y); ctx.quadraticCurveTo(1500, 560, FIELD_ZONES[2].x, FIELD_ZONES[2].y); ctx.stroke();
+    ctx.setLineDash([]); ctx.strokeStyle = night ? "#dbe2d929" : "#fff4c054"; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
     drawTerrainFeatures();
     for (const s of scenery) {
       if (Math.abs(s.x - WORLD_W / 2) < 230 && Math.abs(s.y - WORLD_H / 2) < 210) continue;
@@ -3023,14 +3142,27 @@
     for (const zone of FIELD_ZONES) {
       const center = zonePosition(zone.id);
       const farmX = center.x - 105, farmY = center.y - 95;
+      ctx.fillStyle = "#322c3a42"; roundRect(farmX + 9, farmY + 13, 210, 190, 23); ctx.fill();
       ctx.fillStyle = game.phase === "night" ? "#505769db" : `${zone.color}c9`;
       ctx.strokeStyle = zone.color; ctx.lineWidth = 5;
       roundRect(farmX, farmY, 210, 190, 23); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = game.phase === "night" ? "#34364a42" : "#7e6e5338"; ctx.lineWidth = 2;
       for (let x = farmX + 14; x < farmX + 205; x += 20) { ctx.beginPath(); ctx.moveTo(x, farmY + 8); ctx.lineTo(x - 28, farmY + 181); ctx.stroke(); }
+      ctx.strokeStyle = game.phase === "night" ? "#86a6aa55" : "#8ec8be77"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(farmX + 8, center.y); ctx.quadraticCurveTo(center.x, center.y + 12, farmX + 202, center.y); ctx.stroke();
+      ctx.fillStyle = game.phase === "night" ? "#6d5962" : "#a87655";
+      for (let x = farmX - 6; x <= farmX + 216; x += 37) { ctx.fillRect(x, farmY - 5, 5, 17); ctx.fillRect(x, farmY + 178, 5, 17); }
+      ctx.fillRect(farmX - 5, farmY, 4, 190); ctx.fillRect(farmX + 211, farmY, 4, 190);
+      ctx.strokeStyle = game.phase === "night" ? "#9a7f86" : "#d6a572"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(farmX - 4, farmY + 7); ctx.lineTo(farmX + 214, farmY + 7); ctx.moveTo(farmX - 4, farmY + 183); ctx.lineTo(farmX + 214, farmY + 183); ctx.stroke();
       ctx.fillStyle = "#3f354ecc"; ctx.beginPath(); ctx.roundRect(center.x - 76, farmY - 18, 152, 28, 10); ctx.fill();
       ctx.fillStyle = "#fff9eb"; ctx.textAlign = "center"; ctx.font = "900 11px 'Microsoft YaHei'"; ctx.fillText(zone.name, center.x, farmY - 5);
       ctx.fillStyle = "#e0d6e7"; ctx.font = "7px 'Microsoft YaHei'"; ctx.fillText(zone.copy, center.x, farmY + 5);
+      for (const side of [-1, 1]) {
+        const lampX = center.x + side * 91;
+        ctx.strokeStyle = "#6a5260"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(lampX, farmY + 19); ctx.lineTo(lampX, farmY - 9); ctx.stroke();
+        ctx.fillStyle = game.phase === "night" ? "#fff18a" : "#ffe0a2"; ctx.shadowColor = "#ffe874"; ctx.shadowBlur = game.phase === "night" ? 14 : 3; ctx.beginPath(); ctx.arc(lampX, farmY - 12, 5, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+      }
     }
     for (const plot of game.plots) drawPlot(plot);
     drawMerchantNpc();
@@ -3042,11 +3174,17 @@
     const x = home.x + 155, y = home.y + 118;
     ctx.save(); ctx.translate(x, y);
     ctx.fillStyle = "#51445f"; ctx.beginPath(); ctx.ellipse(0, 14, 26, 12, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#f5c47d"; ctx.fillRect(-15, -20, 30, 35);
+    ctx.fillStyle = "#f5c47d"; ctx.beginPath(); ctx.roundRect(-17, -21, 34, 38, 8); ctx.fill();
+    ctx.strokeStyle = "#fff0d0"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-14,-12); ctx.lineTo(-27,2); ctx.moveTo(14,-12); ctx.lineTo(27,2); ctx.stroke();
+    ctx.fillStyle = "#77b69c"; ctx.beginPath(); ctx.roundRect(-12,-10,24,27,5); ctx.fill();
+    ctx.fillStyle = "#fff0bb"; ctx.fillRect(-7,-5,14,9); ctx.fillStyle = "#8b674f"; ctx.font = "900 7px ui-monospace"; ctx.textAlign="center"; ctx.fillText("◆",0,2);
     ctx.fillStyle = "#7a5d43"; ctx.beginPath(); ctx.arc(0, -28, 18, 0, TAU); ctx.fill();
     ctx.fillStyle = "#dd6e62"; ctx.beginPath(); ctx.moveTo(-23, -34); ctx.lineTo(23, -34); ctx.lineTo(12, -48); ctx.lineTo(-12, -48); ctx.closePath(); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-6, -29, 3, 0, TAU); ctx.arc(6, -29, 3, 0, TAU); ctx.fill();
     ctx.fillStyle = "#3d3043"; ctx.beginPath(); ctx.arc(-6, -29, 1.4, 0, TAU); ctx.arc(6, -29, 1.4, 0, TAU); ctx.fill();
+    ctx.strokeStyle="#6e4d45"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,-25,6,.2,Math.PI-.2); ctx.stroke();
+    ctx.fillStyle="#a36d4c"; ctx.strokeStyle="#fff0c4"; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(31,-4,25,20,5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#ffe078"; ctx.font="900 8px ui-monospace"; ctx.fillText("?",43,9);
     ctx.fillStyle = game.phase === "rest" ? "#fff7c2" : "#e6dce9"; ctx.strokeStyle = "#50445f"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.roundRect(-48, -76, 96, 22, 8); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#40354c"; ctx.textAlign = "center"; ctx.font = "900 9px 'Microsoft YaHei'";
@@ -3097,6 +3235,8 @@
     ctx.strokeStyle = "#80604955";
     ctx.lineWidth = 1;
     for (let i = -14; i <= 14; i += 7) { ctx.beginPath(); ctx.moveTo(i - 5, -7); ctx.lineTo(i + 5, 15); ctx.stroke(); }
+    ctx.fillStyle = plot.wet > 0 ? "#72c9d780" : "#c798654d";
+    for (const px of [-19, 0, 19]) { ctx.beginPath(); ctx.arc(px, 17, plot.wet > 0 ? 2.5 : 1.7, 0, TAU); ctx.fill(); }
 
     if (plot.state !== "empty") {
       const ratio = clamp(plot.growth / crop.grow, 0, 1);
@@ -3108,6 +3248,10 @@
       ctx.fillStyle = "#5e9f54";
       ctx.beginPath(); ctx.ellipse(-7 + sway * .3, -9 * scale, 8 * scale, 4 * scale, -.4, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.ellipse(7 + sway * .5, -16 * scale, 8 * scale, 4 * scale, .4, 0, TAU); ctx.fill();
+      if (ratio > .72) {
+        ctx.fillStyle = "#84c768";
+        ctx.beginPath(); ctx.ellipse(-10 + sway * .2, -22 * scale, 7 * scale, 3.5 * scale, -.7, 0, TAU); ctx.fill();
+      }
       if (ratio > .45) {
         ctx.shadowColor = plot.mutation ? "#fff178" : crop.color;
         ctx.shadowBlur = plot.state === "ready" ? 14 : 4;
@@ -3169,29 +3313,42 @@
   }
 
   function drawCropFruit(type, x, y, size) {
-    ctx.beginPath();
+    const crop = CROP_TYPES.find((entry) => entry.id === type) || CROP_TYPES[0];
+    ctx.save(); ctx.translate(x, y); ctx.lineJoin = "round"; ctx.lineCap = "round";
     if (type === "pepper") {
-      ctx.moveTo(x, y - size); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath();
-    } else if (type === "thorn" || type === "mint") {
-      for (let i = 0; i < 8; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 4;
-        const r = i % 2 === 0 ? size : size * .45;
-        ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-      }
-      ctx.closePath();
-    } else if (type === "clone") {
-      ctx.arc(x - size * .35, y, size * .75, 0, TAU); ctx.moveTo(x + size * 1.1, y); ctx.arc(x + size * .35, y, size * .75, 0, TAU);
+      ctx.fillStyle = crop.color; ctx.strokeStyle = crop.dark; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-size * .3, -size); ctx.bezierCurveTo(size * 1.1, -size * .7, size * .8, size * .7, -size * .35, size); ctx.bezierCurveTo(size * .15, size * .35, -size * .95, -.05 * size, -size * .3, -size); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "#4f8a4d"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-size * .25, -size * .8); ctx.quadraticCurveTo(-size * .65, -size * 1.2, -size * .05, -size * 1.3); ctx.stroke();
+    } else if (type === "sun") {
+      ctx.fillStyle = "#fff08a";
+      for (let i = 0; i < 10; i++) { const a = i * TAU / 10; ctx.beginPath(); ctx.ellipse(Math.cos(a) * size * .78, Math.sin(a) * size * .78, size * .55, size * .25, a, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = crop.dark; ctx.strokeStyle = "#fff5a8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, size * .68, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#4d3e3c"; ctx.beginPath(); ctx.arc(-size * .2, -size * .1, 1.2, 0, TAU); ctx.arc(size * .2, -size * .1, 1.2, 0, TAU); ctx.fill();
+    } else if (type === "thorn") {
+      ctx.fillStyle = crop.color; ctx.strokeStyle = crop.dark; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, size * 1.08, size * .7, -.2, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#d9f3a6"; for (const px of [-.46, 0, .46]) { ctx.beginPath(); ctx.arc(px * size, 0, size * .2, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = crop.dark; ctx.beginPath(); ctx.moveTo(size * .86, -size * .34); ctx.lineTo(size * 1.45, -size * .12); ctx.lineTo(size * .88, size * .16); ctx.closePath(); ctx.fill();
+    } else if (type === "mint") {
+      ctx.fillStyle = crop.color; ctx.strokeStyle = "#e8fbff"; ctx.lineWidth = 2;
+      ctx.beginPath(); for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i * TAU / 12; const r = i % 2 ? size * .42 : size; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a) * size * .72, Math.sin(a) * size * .72); ctx.stroke(); }
     } else if (type === "magnet") {
-      ctx.arc(x, y, size, 0, TAU); ctx.moveTo(x + size * .45, y); ctx.arc(x, y, size * .45, 0, TAU);
-    } else ctx.arc(x, y, size, 0, TAU);
-    ctx.fill();
+      ctx.fillStyle = crop.color; ctx.strokeStyle = crop.dark; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -size * .15, size, Math.PI, TAU); ctx.lineTo(size * .7, size * .7); ctx.lineTo(size * .25, size * .7); ctx.lineTo(size * .2, size * .06); ctx.arc(0, -size * .15, size * .2, 0, Math.PI, true); ctx.lineTo(-size * .25, size * .7); ctx.lineTo(-size * .7, size * .7); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fff5b2"; ctx.fillRect(-size * .72, size * .42, size * .42, size * .28); ctx.fillRect(size * .3, size * .42, size * .42, size * .28);
+    } else if (type === "clone") {
+      for (const side of [-1, 1]) { ctx.fillStyle = side < 0 ? crop.color : "#d8b7ff"; ctx.strokeStyle = crop.dark; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(side * size * .38, -size * .18, size * .63, Math.PI, TAU); ctx.lineTo(side * size * .78, size * .15); ctx.lineTo(side * size * .15, size * .15); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#fff1dc"; ctx.fillRect(side * size * .36 - 2, size * .08, 4, size * .62); }
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-size * .52, -size * .28, 1.2, 0, TAU); ctx.arc(size * .52, -size * .28, 1.2, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawPlayer() {
     const p = game.player;
     const character = CHARACTERS[game.character];
     ctx.save();
-    ctx.translate(p.x, p.y);
+    const moving = input.keys.has("w") || input.keys.has("a") || input.keys.has("s") || input.keys.has("d");
+    const bob = moving ? Math.sin(game.elapsed * 12) * 2 : Math.sin(game.elapsed * 3) * .7;
+    ctx.translate(p.x, p.y + bob);
     if (p.hurtCooldown > 0 && Math.floor(p.hurtCooldown * 20) % 2 === 0) ctx.globalAlpha = .35;
     if (game.overclockTime > 0) {
       ctx.strokeStyle = `rgba(255,238,104,${.45 + Math.sin(game.elapsed * 12) * .2})`;
@@ -3221,27 +3378,40 @@
     ctx.rotate(p.angle);
     drawAiBody(game.character, character);
     if (p.attackMode === "melee") {
-      ctx.strokeStyle = "#fff5c1"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(17, 8); ctx.lineTo(38, 8); ctx.stroke();
-      ctx.strokeStyle = "#ff9f6d"; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(38, -6, 18, .45, 2.05); ctx.stroke();
+      ctx.strokeStyle = "#654b5e"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(45, 9); ctx.stroke();
+      ctx.strokeStyle = "#fff5c1"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, 7); ctx.lineTo(45, 7); ctx.stroke();
+      ctx.strokeStyle = "#ff9f6d"; ctx.lineWidth = 9; ctx.shadowColor = "#ffb465"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(43, -7, 21, .36, 2.08); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#fff3bd"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, -7, 21, .36, 2.08); ctx.stroke();
+      ctx.fillStyle = "#91dc83"; ctx.beginPath(); ctx.ellipse(28, 14, 5, 3, .45, 0, TAU); ctx.fill();
     } else drawWeaponModel(game.weapon);
     ctx.restore();
   }
 
   function drawWeaponModel(weapon) {
-    ctx.save(); ctx.translate(12, 0); ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+    ctx.save(); ctx.translate(11, 0); ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.lineJoin = "round";
     if (weapon === "shotgun") {
-      ctx.fillStyle = "#e98b67"; ctx.beginPath(); ctx.roundRect(0, -8, 34, 16, 6); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#5e5269"; for (let y = -6; y <= 6; y += 6) ctx.fillRect(28, y - 2, 11, 4);
+      ctx.fillStyle = "#7d5b55"; ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(8,-9); ctx.lineTo(8,9); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#e98b67"; ctx.beginPath(); ctx.roundRect(5, -9, 30, 18, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#594d64"; for (const y of [-5, 1, 7]) ctx.fillRect(29, y - 2, 15, 4);
+      ctx.fillStyle = "#ffd39a"; for (const y of [-5, 1, 7]) ctx.fillRect(41, y - 2, 4, 4);
     } else if (weapon === "rail") {
-      ctx.fillStyle = "#6bc7d1"; ctx.beginPath(); ctx.roundRect(-2, -6, 48, 12, 4); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#ffe36b"; ctx.fillRect(12, -3, 25, 6); ctx.fillStyle = "#5a4c67"; ctx.fillRect(42, -4, 13, 8);
+      ctx.fillStyle = "#4e536b"; ctx.beginPath(); ctx.roundRect(-3, -8, 51, 16, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#6bc7d1"; ctx.fillRect(3, -5, 39, 10);
+      ctx.strokeStyle = "#d8ffff"; ctx.lineWidth = 2; for (let x = 8; x < 42; x += 9) { ctx.beginPath(); ctx.arc(x,0,6,0,TAU); ctx.stroke(); }
+      ctx.fillStyle = "#ffe36b"; ctx.fillRect(11, -2, 27, 4); ctx.fillStyle = "#5a4c67"; ctx.fillRect(46, -4, 13, 8);
+      ctx.fillStyle = "#73edf2"; ctx.beginPath(); ctx.arc(58,0,3 + Math.sin(game.elapsed * 8),0,TAU); ctx.fill();
     } else if (weapon === "wand") {
-      ctx.strokeStyle = "#a887de"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(38, 0); ctx.stroke();
+      ctx.strokeStyle = "#71579c"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-2, 3); ctx.quadraticCurveTo(18,-5,39,0); ctx.stroke();
+      ctx.strokeStyle = "#9fe0a2"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(5,1); ctx.quadraticCurveTo(17,9,29,-1); ctx.stroke();
+      ctx.fillStyle="#84cf81"; ctx.beginPath(); ctx.ellipse(19,4,6,3,.5,0,TAU); ctx.fill();
       ctx.fillStyle = "#83e0c4"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, 0, 9 + Math.sin(game.elapsed * 6) * 2, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#fff07b"; ctx.beginPath(); ctx.arc(43, 0, 3, 0, TAU); ctx.fill();
     } else {
-      ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.roundRect(0, -7, 34, 14, 5); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#ff668f"; ctx.beginPath(); ctx.arc(33, 0, 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#65536a"; ctx.beginPath(); ctx.moveTo(-7,-4); ctx.lineTo(8,-9); ctx.lineTo(12,8); ctx.lineTo(-5,8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.roundRect(5, -8, 35, 16, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ff668f"; ctx.beginPath(); ctx.roundRect(13,-5,15,10,4); ctx.fill();
+      ctx.strokeStyle = "#785b87"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(31,-11); ctx.lineTo(38,-11); ctx.lineTo(41,-6); ctx.stroke();
+      ctx.fillStyle = "#ffdb68"; ctx.beginPath(); ctx.arc(41, 0, 5 + (game.weaponShotCount % 6 === 5 ? 2 : 0), 0, TAU); ctx.fill();
     }
     ctx.restore();
   }
@@ -3249,6 +3419,9 @@
   function drawAiBody(type, character) {
     ctx.fillStyle = "#51445e48";
     ctx.beginPath(); ctx.ellipse(-3, 15, 19, 8, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#fff8ec"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-8,10); ctx.lineTo(-13,19); ctx.moveTo(5,11); ctx.lineTo(9,20); ctx.stroke();
+    ctx.fillStyle = character.color; ctx.beginPath(); ctx.ellipse(-15,20,7,4,.15,0,TAU); ctx.ellipse(11,20,7,4,-.15,0,TAU); ctx.fill();
     ctx.strokeStyle = "#fff8ec"; ctx.lineWidth = 4; ctx.lineJoin = "round";
     if (type === "beat") {
       ctx.fillStyle = character.body; ctx.beginPath(); ctx.moveTo(-15,-10); ctx.lineTo(9,-14); ctx.lineTo(18,3); ctx.lineTo(5,18); ctx.lineTo(-16,8); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -3638,6 +3811,13 @@
   $("home-end-btn").addEventListener("click", goHome);
   ui.merchantRefresh.addEventListener("click", refreshMerchant);
   ui.restContinue.addEventListener("click", () => { if (game && game.phase === "rest") phaseTransition(); });
+  ui.shopToggle.addEventListener("click", () => {
+    const collapsed = ui.restShop.classList.toggle("collapsed");
+    ui.shopToggle.textContent = collapsed ? "展开商店 ▼" : "上拉收起 ▲";
+    ui.shopToggle.setAttribute("aria-expanded", String(!collapsed));
+    sound.tone(collapsed ? 260 : 360, .08, "triangle", .025, collapsed ? -60 : 80);
+    canvas.focus();
+  });
   document.querySelectorAll(".seed-card").forEach((button) => button.addEventListener("click", () => selectSeed(Number(button.dataset.seed))));
   document.querySelectorAll(".weapon-card").forEach((button) => {
     button.title = WEAPONS[button.dataset.weapon].copy;
@@ -3676,18 +3856,23 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
-      snapshot: () => game ? ({ day: game.day, phase: game.phase, phaseTime: game.phaseTime, character: game.character, weapon: game.weapon, carriedSeeds: [...game.carriedSeeds], selectedSeed: game.selectedSeed, selectedTool: game.selectedTool, activeTools: { ...game.activeTools }, skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, level: game.player.level, pendingChoice: game.pendingChoice, damage: game.player.damage, armor: game.player.armor, speed: game.player.speed, dodge: game.player.dodge, crit: game.player.crit, hp: game.player.hp, maxHp: game.player.maxHp, water: game.water, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), plots: game.plots.length, growingPlots: game.plots.filter((plot) => plot.state === "growing").length, dryPlots: game.plots.filter((plot) => plot.state === "growing" && plot.wet <= 2).length, hybrids: game.hybridCount, comboPlants: game.comboPlantCount, comboCards: Object.keys(game.comboCards), comboHarvestStacks: { ...game.comboHarvestStacks }, hybridStatStacks: { ...game.hybridStatStacks }, harvestMomentum: game.harvestMomentum, cropMultiplier: combatCropMultiplier(game.player.attackMode === "melee"), elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), enemyCount: game.enemies.length, boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, nextEventIn: game.eventTimer, merchantRefreshes: game.merchantRefreshes, merchantRefreshCost: 2 + game.merchantRefreshes * 2, merchantStock: [...game.merchantStock], statTalents: { ...game.statTalents }, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-3).map((b) => ({ splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
-      readyCrop: (index) => { const plot = game.plots[0]; plot.crop = index; plot.state = "ready"; plot.growth = CROP_TYPES[index].grow; game.player.x = plot.x; game.player.y = plot.y + 100; },
+      snapshot: () => game ? ({ day: game.day, wave: game.wave, totalWaves: TOTAL_WAVES, rewardWave: isRewardWave(), phase: game.phase, phaseTime: game.phaseTime, character: game.character, weapon: game.weapon, weaponMastery: game.weaponMastery, carriedSeeds: [...game.carriedSeeds], selectedSeed: game.selectedSeed, selectedTool: game.selectedTool, activeTools: { ...game.activeTools }, skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, level: game.player.level, pendingChoice: game.pendingChoice, damage: game.player.damage, armor: game.player.armor, speed: game.player.speed, dodge: game.player.dodge, crit: game.player.crit, hp: game.player.hp, maxHp: game.player.maxHp, water: game.water, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), plots: game.plots.length, growingPlots: game.plots.filter((plot) => plot.state === "growing").length, dryPlots: game.plots.filter((plot) => plot.state === "growing" && plot.wet <= 2).length, hybrids: game.hybridCount, comboPlants: game.comboPlantCount, comboCards: Object.keys(game.comboCards), comboHarvestStacks: { ...game.comboHarvestStacks }, hybridStatStacks: { ...game.hybridStatStacks }, harvestMomentum: game.harvestMomentum, cropMultiplier: combatCropMultiplier(game.player.attackMode === "melee"), elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), enemyCount: game.enemies.length, boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, nextEventIn: game.eventTimer, merchantRefreshes: game.merchantRefreshes, merchantRefreshCost: 2 + game.merchantRefreshes * 2, merchantStock: [...game.merchantStock], statTalents: { ...game.statTalents }, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-6).map((b) => ({ weapon: b.weapon, overcharged: Boolean(b.overcharged), isSprout: Boolean(b.isSprout), splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
+      readyCrop: (index, plotIndex = 0) => { const plot = game.plots[plotIndex] || game.plots[0]; plot.crop = index; plot.state = "ready"; plot.growth = CROP_TYPES[index].grow; game.player.x = plot.x; game.player.y = plot.y + 100; },
       breakShield: () => { game.player.shield = 8; game.player.hurtCooldown = 0; hurtPlayer(12, game.player.x - 30, game.player.y); },
       summonBoss: (type) => { game.enemies.length = 0; game.boss = null; game.bossSpawned = false; game.phase = "night"; game.day = type === "crowboss" ? 2 : type === "slimeboss" ? 4 : 5; spawnBoss(type); },
       castBossSkill: () => { game.freezeTimer = 0; if (game.boss) { game.boss.enter = 0; game.boss.skillTimer = 0; } },
       useSkill: () => { game.player.skillCooldown = 0; activateSkill(); },
       install: (id, level = 1) => { const item = ITEMS.find((entry) => entry.id === id); if (!item) return; for (let i = game.items[id] || 0; i < Math.min(level, item.max); i++) { game.items[id] = i + 1; item.apply(i + 1); } checkFusions(); renderBuildDock(); },
+      startWithWeapon: (id) => { if (!WEAPONS[id]) return false; selectedWeapon = id; startRun(); return { weapon: game.weapon, attackMode: game.player.attackMode }; },
+      fireShots: (count = 1) => { game.bullets.length = 0; for (let i = 0; i < count; i++) shootPlayer(); return game.bullets.map((b) => ({ weapon: b.weapon, overcharged: Boolean(b.overcharged), damage: b.damage, pierce: b.pierce, isSprout: Boolean(b.isSprout) })); },
+      probeWeaponHit: () => { game.bullets.length = 0; game.enemies.length = 0; shootPlayer(); spawnEnemy("mite"); const enemy = game.enemies[0]; enemy.x = game.player.x + 28; enemy.y = game.player.y; enemy.hp = enemy.maxHp = 9999; const bullet = game.bullets[0]; if (!bullet) return null; const beforeDamage = bullet.damage; bullet.x = enemy.x; bullet.y = enemy.y; updateBullets(.001); return { hpLoss: 9999 - enemy.hp, beforeDamage, remaining: game.bullets.map((b) => ({ weapon: b.weapon, damage: b.damage, isSprout: Boolean(b.isSprout), pierce: b.pierce })) }; },
       dropChest: () => { game.nightChestDays[game.day] = false; dropRelicChest(game.player.x + 25, game.player.y, game.day); },
       hurtBoss: (ratio) => { if (game.boss) game.boss.hp = game.boss.maxHp * ratio; },
       endRun: () => finishRun(false),
       eventNow: (id = null) => { if (!id) { game.activeEvent = null; game.eventTime = 0; game.eventTimer = 0; return; } if (game.phase === "rest") game.phase = "day"; game.activeEvent = id; game.eventTime = 12; game.eventBannerTime = 4.8; ui.event.classList.remove("hidden"); ui.event.querySelector("b").textContent = id; },
-      toRest: () => { game.phase = "day"; game.phaseTime = currentDuration(); game.freezeTimer = 0; update(.02); },
+      toRest: () => { game.wave = Math.min(TOTAL_WAVES - 1, Math.max(2, Math.floor((game.wave - 1) / 3) * 3 + 2)); game.day = Math.floor((game.wave - 1) / 3) + 1; game.phase = "day"; game.phaseTime = currentDuration(); game.freezeTimer = 0; update(.02); },
+      setWave: (wave) => { state = "playing"; game.pendingChoice = null; ui.choice.classList.add("hidden"); clearCombatField(); beginWave(clamp(Math.floor(wave), 1, TOTAL_WAVES)); updateHud(); return game.wave; },
+      finishWave: () => { game.boss = null; phaseTransition(); updateHud(); return { wave: game.wave, phase: game.phase }; },
       buySeed: (index) => { game.coins = Math.max(game.coins, 2); buySeed(index); },
       forceHybrid: (hybridId) => { const h = HYBRIDS.find((entry) => entry.id === hybridId); if (!h) return false; const plots = game.plots.filter((plot) => plot.zone === "home").slice(0, 2); clearPlot(plots[0]); clearPlot(plots[1]); plots[0].crop = h.pair[0]; plots[0].state = "ready"; plots[0].growth = CROP_TYPES[h.pair[0]].grow; plots[1].crop = h.pair[1]; plots[1].state = "growing"; plots[1].growth = CROP_TYPES[h.pair[1]].grow; const original = Math.random; Math.random = () => 0; maturePlot(plots[1]); Math.random = original; return plots[1].hybrid; },
       unlockCombo: (comboId) => { const combo = COMBO_PLANTS.find((entry) => entry.id === comboId); if (!combo) return false; meta.achievements[combo.achievement] = Date.now(); storage.save(meta); renderRestShop(); return true; },
@@ -3695,7 +3880,7 @@
       forceCombo: (comboId) => { const combo = COMBO_PLANTS.find((entry) => entry.id === comboId); if (!combo) return false; game.comboCards[comboId] = true; const plots = game.plots.filter((plot) => plot.zone === "home").slice(0, 2); clearPlot(plots[0]); clearPlot(plots[1]); plots[0].crop = combo.pair[0]; plots[0].state = "ready"; plots[0].growth = CROP_TYPES[combo.pair[0]].grow; plots[1].crop = combo.pair[1]; plots[1].state = "growing"; plots[1].growth = CROP_TYPES[combo.pair[1]].grow; maturePlot(plots[1]); return plots[1].comboPlant; },
       harvestReady: (index = 0) => { const plot = game.plots[index]; if (!plot || plot.state !== "ready") return false; harvest(plot); return true; },
       harvestSpecial: (kind, id) => { const made = kind === "combo" ? window.__wildrootDebug.forceCombo(id) : window.__wildrootDebug.forceHybrid(id); if (!made) return false; const index = game.plots.findIndex((plot) => kind === "combo" ? plot.comboPlant === id : plot.hybrid === id); if (index < 0) return false; harvest(game.plots[index]); return true; },
-      availableItemIds: () => ITEMS.filter((item) => itemMatchesLoadout(item)).map((item) => item.id),
+      availableItemIds: () => ITEMS.filter((item) => itemMatchesLoadout(item) && itemMatchesWeapon(item)).map((item) => item.id),
       openChoice: (mode = "milestone") => { state = "playing"; showChoice(mode); return [...ui.choiceCards.querySelectorAll("h3")].map((node) => node.textContent); },
       chooseStat: (id) => { const item = STAT_TALENTS.find((entry) => entry.id === id); if (!item) return false; chooseStatTalent(item); return true; },
       refreshShop: () => { game.phase = "rest"; game.coins = Math.max(game.coins, 50); const before = game.coins; refreshMerchant(); return before - game.coins; },
