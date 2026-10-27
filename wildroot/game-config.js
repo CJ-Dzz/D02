@@ -8,7 +8,16 @@ window.WILDROOT_CONFIG = {
     startingIds: [0, 1, 2],
     startingCount: 3,
     unlockCost: 5,
-    unlockBonusSeeds: 2
+    unlockBonusSeeds: 2,
+    packSize: 2,
+    prices: [3, 2, 3, 4, 4, 5, 3, 4]
+  },
+  waves: {
+    baseDuration: 22,
+    durationPerWave: 0.75,
+    rewardBaseDuration: 17,
+    rewardDurationPerWave: 0.45,
+    eventFinishGrace: 1.5
   },
   progression: {
     statNodeEvery: 3,
@@ -38,6 +47,14 @@ window.WILDROOT_CONFIG = {
     initialDelay: 44,
     intervalMin: 72,
     intervalMax: 100
+  },
+  drops: {
+    mergeRadius: 82,
+    xpValueMultiplier: 1.18,
+    waterChance: 0.12,
+    biomassChance: 0.30,
+    waterValue: 2,
+    biomassValue: 2
   },
   breeding: {
     mutationBaseChance: 0.04,
