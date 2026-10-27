@@ -64,7 +64,7 @@
       <div id="combo-display" class="combo-display hidden"><b>×<span>0</span></b><small>连击演算</small></div>
 
       <div class="build-dock">
-        <span>本轮插件</span>
+        <div class="build-dock-head"><span>本轮插件</span><div><button id="build-prev" aria-label="上一页">‹</button><b id="build-page">1 / 1</b><button id="build-next" aria-label="下一页">›</button></div></div>
         <div id="build-items"><em>等待安装...</em></div>
       </div>
 
@@ -86,6 +86,12 @@
         </button>
         <button class="seed-card" data-seed="5">
           <kbd>6</kbd><span class="seed-glyph clone">♊</span><b>模仿菇</b><small>复制弹 · 模仿附近作物</small><em id="seed-5">2</em>
+        </button>
+        <button class="seed-card" data-seed="6">
+          <kbd>7</kbd><span class="seed-glyph nut">⬢</span><b>铁壳坚果</b><small>护甲场 · 分摊田地伤害</small><em id="seed-6">0</em>
+        </button>
+        <button class="seed-card" data-seed="7">
+          <kbd>8</kbd><span class="seed-glyph corn">♨</span><b>玉米投手</b><small>爆米花 · 自动范围轰炸</small><em id="seed-7">0</em>
         </button>
       </div>
 
@@ -139,16 +145,9 @@
             <button class="weapon-card" data-weapon="scythe"><b>月芽收割镰</b><small>初始近战武器</small></button>
           </div>
         </div>
-        <div class="loadout-panel seed-loadout">
-          <span>种子携带槽 <em id="seed-loadout-count">4 / 4</em></span>
-          <div>
-            <button class="loadout-seed active" data-loadout-seed="0">辣椒</button>
-            <button class="loadout-seed active" data-loadout-seed="1">向日葵</button>
-            <button class="loadout-seed active" data-loadout-seed="2">豌豆</button>
-            <button class="loadout-seed active" data-loadout-seed="3">磁力菇</button>
-            <button class="loadout-seed" data-loadout-seed="4">寒冰菇</button>
-            <button class="loadout-seed" data-loadout-seed="5">模仿菇</button>
-          </div>
+        <div class="loadout-panel seed-progression">
+          <span>局内种子库 <em>3 种开局</em></span>
+          <div><b>辣椒</b><b>向日葵</b><b>豌豆炮</b><i>其余 5 种由休整商店随机刷新解锁</i></div>
         </div>
       </div>
       <button id="start-btn" class="primary-button"><span>开始末日生存</span><small>ENTER</small></button>
@@ -174,7 +173,7 @@
         <span><i class="tip-night"></i>夜晚：啃根虫、野猪与掠种贼会攻击田地</span>
         <span><i class="tip-crop"></i>成熟：每种作物都能强化战斗</span>
       </div>
-      <p class="version">BUILD 6.3 · 五武器、十五波与奖励关</p>
+      <p class="version">BUILD 6.4 · 种子解锁、插件分页与八种植物</p>
     </section>
 
     <section id="story-screen" class="screen story-screen hidden">
@@ -243,6 +242,7 @@
       <p id="fusion-copy">辣椒燃烧芯 × 弹射藤蔓</p>
     </section>
   </main>
+  <script src="game-config.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

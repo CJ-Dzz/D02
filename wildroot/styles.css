@@ -784,9 +784,6 @@ h1 { color: #514263; font-size: clamp(44px, 5.7vw, 73px); text-shadow: 0 5px 0 #
 .start-screen .start-tips { display: none; }
 .start-screen .version { position: static; margin-top: 6px; padding-bottom: 4px; }
 
-.seed-card.unavailable { opacity: .25; filter: grayscale(1); pointer-events: none; }
-.seed-card.unavailable::after { content: "未携带"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: #342d3a99; font-size: 9px; font-weight: 900; }
-
 .terrain-card { position: absolute; right: 25px; top: 154px; width: 210px; padding: 8px 11px; color: #5d506a; background: #e8f7f0e8; border: 3px solid #fff; border-radius: 14px; box-shadow: 0 4px 0 #66577738; text-shadow: none; transition: opacity .25s, transform .25s; }
 .terrain-card small,.terrain-card b,.terrain-card span { display: block; }
 .terrain-card small { color: #4fa685; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
@@ -902,3 +899,36 @@ h1 { color: #514263; font-size: clamp(44px, 5.7vw, 73px); text-shadow: 0 5px 0 #
   .start-screen .meta-card,.start-screen .meta-lab { margin-top: 6px; }
   .start-screen .pitch { margin-top: 7px; line-height: 1.45; }
 }
+
+/* Build 6.4 — in-run seed library, paged plugins and clearer crops */
+.seed-progression > div { display:flex; align-items:center; gap:4px; }
+.seed-progression b { padding:5px 7px; color:#594e62; background:#dff5ce; border:2px solid #fff; border-radius:8px; font-size:7px; }
+.seed-progression i { margin-left:auto; color:#8b7d91; font:normal 700 7px/1.35 "Microsoft YaHei",sans-serif; }
+
+.seed-bar { gap:3px; }
+.seed-card { height:34px; padding:3px 25px 3px 38px; border-radius:9px; }
+.seed-card kbd { top:5px; left:5px; }
+.seed-card .seed-glyph { left:17px; top:9px; font-size:14px; }
+.seed-card b { font-size:10px; line-height:1.05; }
+.seed-card small { margin-top:2px; font-size:6.5px; }
+.seed-card em { right:7px; top:7px; font-size:14px; }
+.seed-glyph.nut { color:#e4a25e; }
+.seed-glyph.corn { color:#ffd45f; }
+.seed-card.locked { opacity:.56; filter:grayscale(.7) saturate(.45); }
+.seed-card.locked::after { content:"商店解锁"; position:absolute; inset:0; display:grid; place-items:center; color:#fff; background:#42364db5; border-radius:6px; font-size:8px; font-weight:900; letter-spacing:.08em; }
+.active-tool { top:390px; }
+
+.build-dock { width:340px; min-width:340px; min-height:62px; padding:6px 10px 7px; pointer-events:auto; }
+.build-dock-head { height:17px; display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; color:#867990; font-size:8px; font-weight:900; letter-spacing:.12em; }
+.build-dock-head > div { display:flex; align-items:center; gap:5px; }
+.build-dock-head button { width:20px; height:18px; padding:0; color:#5f526d; background:#eee4f1; border:1px solid #fff; border-radius:6px; cursor:pointer; font:900 13px/1 sans-serif; }
+.build-dock-head button:disabled { opacity:.28; cursor:default; }
+.build-dock-head b { min-width:29px; text-align:center; font:900 7px/1 ui-monospace,monospace; }
+#build-items { min-height:30px; display:grid; grid-template-columns:repeat(8,30px); justify-content:center; gap:6px; }
+.build-item { width:30px; height:30px; }
+
+#rest-shop-items button.seed-unlock-card { grid-column:1 / -1; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; color:#674b57; text-align:left; background:linear-gradient(100deg,#fff2a5,#ffd7a6,#efdcff); border-color:#fffcdd; box-shadow:0 3px 0 #aa785044; }
+#rest-shop-items button.seed-unlock-card b { color:#d55e75; }
+#rest-shop-items button.seed-unlock-card small { color:#756778; letter-spacing:0; }
+#rest-shop-items button.seed-unlock-card strong { white-space:nowrap; }
+#rest-shop-items .all-seeds { color:#438d6d; }
