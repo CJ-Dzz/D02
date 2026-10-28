@@ -30,6 +30,7 @@
   const EXPLORATION_CONFIG = Object.assign({ slotChance: .72, maxPerDay: 4, weights: {} }, CONFIG.exploration || {});
   const ART = { ink: "#344b39", paper: "#efecd5", jade: "#8ca779", gold: "#d7b969", coral: "#ca7c65", blue: "#86ada7", plum: "#938c9b" };
   const companionAtlas = new Image();
+  const companionSprites = [];
   companionAtlas.src = window.WILDROOT_COMPANION_ATLAS || "assets/companions-v67.png";
   const enemyAtlas = new Image();
   enemyAtlas.src = window.WILDROOT_ENEMY_ATLAS || "assets/enemies-v66.png";
@@ -67,6 +68,7 @@
     return image;
   }
   const ICON_PATHS = {
+    music: '<path d="M9 17V5l12-3v12M9 9l12-3"/><ellipse cx="6" cy="18" rx="3" ry="2.5"/><ellipse cx="18" cy="15" rx="3" ry="2.5"/>',
     book: '<path d="M12 5C9 2 4 2 2 3v16c4-1 7 0 10 2 3-2 6-3 10-2V3c-3-1-7-1-10 2ZM12 5v16M5 7l4 1M5 11l4 1M15 8l4-1M15 12l4-1"/>',
     leaf: '<path d="M5 19C2 7 9 3 21 3c0 12-5 17-16 16ZM5 19 16 8M9 15l-1-5M12 12h5"/>',
     water: '<path d="M12 3C10 7 5 11 5 15a7 7 0 0 0 14 0c0-4-5-8-7-12Z"/><path d="M8 15c0 2 1 3 3 4"/>',
@@ -162,52 +164,18 @@
   meta.harvestStats = Object.assign({ pepper: 0, sun: 0, thorn: 0, magnet: 0, mint: 0, clone: 0, nut: 0, corn: 0 }, meta.harvestStats || {});
   meta.hybridCrafts = meta.hybridCrafts || 0;
 
-  class SoundEngine {
-    constructor() { this.context = null; this.enabled = true; this.bgmClock = 0; this.bgmStep = 0; }
-    init() {
-      if (!this.context) this.context = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.context.state === "suspended") this.context.resume().catch(() => {});
-    }
-    tone(freq, length = 0.06, type = "square", volume = 0.035, slide = 0) {
-      if (!this.enabled) return;
-      this.init();
-      const t = this.context.currentTime;
-      const osc = this.context.createOscillator();
-      const gain = this.context.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, t);
-      if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + length);
-      gain.gain.setValueAtTime(volume, t);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
-      osc.connect(gain).connect(this.context.destination);
-      osc.start(t);
-      osc.stop(t + length);
-    }
-    shoot() { this.tone(170, .045, "square", .025, 80); }
-    hit() { this.tone(95, .035, "sawtooth", .02, -30); }
-    pickup() { this.tone(530, .07, "sine", .035, 240); }
-    plant() { this.tone(260, .08, "triangle", .04, 100); }
-    water() { this.tone(420, .09, "sine", .03, -100); }
-    harvest() { this.tone(440, .13, "triangle", .045, 300); setTimeout(() => this.tone(660, .12, "triangle", .035, 250), 60); }
-    hurt() { this.tone(100, .16, "sawtooth", .07, -55); }
-    level() { [420, 560, 720].forEach((f, i) => setTimeout(() => this.tone(f, .14, "triangle", .045, 80), i * 65)); }
-    dash() { this.tone(190, .1, "sine", .035, 260); }
-    boom() { this.tone(85, .22, "sawtooth", .065, -45); }
-    updateMusic(dt) {
-      if (!this.enabled || !this.context || state !== "playing" || !game) return;
-      this.bgmClock -= dt;
-      if (this.bgmClock > 0) return;
-      const boss = Boolean(game.boss);
-      const night = game.phase === "night";
-      const reward = isRewardWave();
-      const melody = boss ? [110,165,147,196,110,220,165,147] : reward ? [262,330,392,523,392,440,523,659] : night ? [147,175,165,131,147,220,196,165] : [196,247,294,262,220,294,330,247];
-      const bass = boss ? [55,55,73,65] : reward ? [131,165,196,165] : night ? [73,65,82,55] : [98,110,123,110];
-      const step = this.bgmStep++;
-      this.tone(melody[step % melody.length], boss ? .18 : .24, boss ? "sawtooth" : "triangle", boss ? .018 : .014, 0);
-      if (step % 2 === 0) this.tone(bass[Math.floor(step / 2) % bass.length], .32, "sine", .016, 0);
-      if (boss && step % 2 === 1) this.tone(65, .035, "square", .012, -8);
-      this.bgmClock = boss ? .19 : reward ? .26 : night ? .3 : .36;
-    }
+  class SoundEngine extends window.WildrootAudio.Engine {
+    constructor() { super(CONFIG.audio || {}); }
+    shoot() { if(this.allowSfx("shoot",.08))this.tone(170,.045,"square",.025,80); }
+    hit() { if(this.allowSfx("hit",.10))this.tone(95,.035,"sawtooth",.02,-30); }
+    pickup() { this.tone(530,.07,"sine",.035,240); }
+    plant() { this.tone(260,.08,"triangle",.04,100); }
+    water() { this.tone(420,.09,"sine",.03,-100); }
+    harvest() { this.tone(440,.13,"triangle",.045,300);setTimeout(()=>this.tone(660,.12,"triangle",.035,250),60); }
+    hurt() { this.tone(100,.16,"sawtooth",.07,-55); }
+    level() { [420,560,720].forEach((f,i)=>setTimeout(()=>this.tone(f,.14,"triangle",.045,80),i*65)); }
+    dash() { this.tone(190,.1,"sine",.035,260); }
+    boom() { this.tone(85,.22,"sawtooth",.065,-45); }
   }
   const sound = new SoundEngine();
 
@@ -510,6 +478,8 @@
       weaponFx: { time: 0, duration: .22 },
       weaponMastery: 0,
       aiSpeechTime: 0,
+      voiceLineTime: 0,
+      voiceLineIndex: 0,
       missionTime: 7,
       terrainCardTime: 7,
       toast: { text: "", sub: "", time: 0 },
@@ -668,6 +638,7 @@
   }
 
   function goHome() {
+    sound.stopVoice();
     state = "start";
     game = null;
     input.keys.clear(); input.mouse.down = false;
@@ -747,6 +718,7 @@
   }
 
   function startRun() {
+    sound.stopVoice();
     resetGame();
     state = "playing";
     ui.start.classList.add("hidden");
@@ -761,7 +733,6 @@
     ui.hud.classList.remove("hidden");
     canvas.focus();
     sound.init();
-    sound.bgmClock = 0;
     const character = CHARACTERS[selectedCharacter];
     ui.aiSpeech.querySelector("b").textContent = character.name;
     document.querySelector(".brand-mini span").textContent = `${character.code} ONLINE`;
@@ -1236,8 +1207,9 @@
     game.toast = { text, sub, time: 3.2 };
   }
 
-  function aiSay(text, duration = 3) {
+  function aiSay(text, duration = 3, priority = false) {
     if (!game) return;
+    if (game.voiceLineTime > 0 && !priority) return;
     ui.aiSpeech.querySelector("span").textContent = text;
     ui.aiSpeech.classList.remove("hidden");
     game.aiSpeechTime = duration;
@@ -1387,7 +1359,6 @@
 
   function update(dt) {
     if (state !== "playing" || !game) return;
-    sound.updateMusic(dt);
     if (game.freezeTimer > 0) {
       game.freezeTimer -= dt;
       updateParticles(dt);
@@ -1415,6 +1386,7 @@
       game.aiSpeechTime -= dt;
       if (game.aiSpeechTime <= 0) ui.aiSpeech.classList.add("hidden");
     }
+    game.voiceLineTime = Math.max(0, game.voiceLineTime - dt);
     if (game.comboTime > 0) {
       game.comboTime -= dt;
       if (game.comboTime <= 0) game.combo = 0;
@@ -1685,7 +1657,11 @@
       ringEffect(p.x, p.y, "#8ff5df", 360); burst(p.x, p.y, "#c6fff3", 34, 250);
       showToast(character.skill, `护盾 +${shield}，全农区灌溉并净化附近弹幕`);
     }
-    aiSay(`${character.skill}启动。今天也要一起活到天亮。`, 3.5);
+    const clipId = `${game.character}-${game.voiceLineIndex++ % 2 + 1}`;
+    const clip = window.WILDROOT_VOICES[clipId];
+    game.voiceLineTime = Math.max(4, clip.duration + .4);
+    aiSay(clip.text, game.voiceLineTime, true);
+    sound.speak(clipId);
     sound.level();
   }
 
@@ -3290,6 +3266,12 @@
   function renderCompanionPortraits() {
     if (!companionAtlas.complete || !companionAtlas.naturalWidth) return;
     const cell = companionAtlas.naturalWidth / 3, scale = companionAtlas.naturalHeight / 1024;
+    if (!companionSprites.length) for (let index=0;index<3;index++) {
+      const sprite=document.createElement("canvas");sprite.width=108;sprite.height=196;
+      const c=sprite.getContext("2d");c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";
+      c.drawImage(companionAtlas,index*cell+16*scale,60*scale,cell-32*scale,940*scale,0,0,108,196);
+      companionSprites.push(sprite);
+    }
     const draw = (target, id, head = false) => {
       if (!target) return;
       const index = ["sprout", "beat", "mochi"].indexOf(id);
@@ -3340,6 +3322,7 @@
   }
 
   function finishRun(victory) {
+    sound.stopVoice();
     if (game.ended) return;
     game.ended = true;
     state = "end";
@@ -3554,6 +3537,7 @@
   function frame(now) {
     const dt = Math.min(.033, (now - lastTime) / 1000);
     lastTime = now;
+    sound.setScene(state === "paused" || state === "choice" ? "paused" : state === "end" ? "ending" : state !== "playing" || !game ? "menu" : game.boss ? "boss" : game.phase === "rest" ? "rest" : isRewardWave() ? "reward" : game.phase === "night" ? "night" : "day");
     update(dt);
     if (state === "start") renderWeaponPreviews(now);
     drawFrameOnly();
@@ -3568,7 +3552,7 @@
       ctx.save();
       ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
       ctx.translate(rand(-shakeAmount, shakeAmount), rand(-shakeAmount, shakeAmount));
-      ctx.translate(VIEW.x + VIEW.w / 2 - game.camera.x, VIEW.y + VIEW.h / 2 - game.camera.y);
+      ctx.translate(Math.round(VIEW.x + VIEW.w / 2 - game.camera.x), Math.round(VIEW.y + VIEW.h / 2 - game.camera.y));
       drawWorldScenery(t);
       drawFarm();
       drawHazards();
@@ -4049,10 +4033,19 @@
     const p = game.player;
     const character = CHARACTERS[game.character];
     ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.filter = "none";
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = "source-over";
     const moving = input.keys.has("w") || input.keys.has("a") || input.keys.has("s") || input.keys.has("d");
     const bob = moving ? Math.sin(game.elapsed * 12) * 2 : Math.sin(game.elapsed * 3) * .7;
-    ctx.translate(p.x, p.y + bob);
-    if (p.hurtCooldown > 0 && Math.floor(p.hurtCooldown * 20) % 2 === 0) ctx.globalAlpha = .35;
+    ctx.translate(Math.round(p.x), Math.round(p.y + bob));
+    if (p.hurtCooldown > 0) {
+      ctx.strokeStyle = p.dashTime > 0 ? "#cde5bd" : "#e3a080";
+      ctx.lineWidth = 2;
+      ctx.beginPath();ctx.ellipse(0,16,24+Math.sin(p.hurtCooldown*24)*2,10,0,0,TAU);ctx.stroke();
+      if (p.dashTime <= 0) {ctx.beginPath();ctx.moveTo(-29,-39);ctx.lineTo(-29,-58);ctx.lineTo(-20,-58);ctx.moveTo(29,-39);ctx.lineTo(29,-58);ctx.lineTo(20,-58);ctx.stroke();}
+    }
     if (game.overclockTime > 0) {
       ctx.strokeStyle = `rgba(255,238,104,${.45 + Math.sin(game.elapsed * 12) * .2})`;
       ctx.lineWidth = 4;
@@ -4082,15 +4075,17 @@
       ctx.fillStyle="#30473045"; ctx.beginPath(); ctx.ellipse(0,15,20,8,0,0,TAU); ctx.fill();
       ctx.save();
       if (Math.cos(p.angle) < -.15) ctx.scale(-1,1);
-      if (p.hurtCooldown > .55) ctx.filter="brightness(1.55)";
       const index = ["sprout","beat","mochi"].indexOf(game.character);
-      const cell = companionAtlas.naturalWidth / 3;
-      ctx.drawImage(companionAtlas,index*cell,65,cell,930,-23,-65,46,84);
+      const sprite = companionSprites[index];
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      if (sprite) ctx.drawImage(sprite,-27,-77,54,98);
       ctx.restore();
     } else { ctx.save(); ctx.rotate(p.angle); drawAiBody(game.character, character); ctx.restore(); }
     ctx.rotate(p.angle);
     ctx.scale(.86,.86);
     window.WildrootWeapons.draw(ctx, game.weapon, { time: game.elapsed, attack: game.weaponFx.time / game.weaponFx.duration, hands: true, charged: game.weaponShotCount % 6 === 5 });
+    if (location.hostname === "127.0.0.1" || location.hostname === "localhost") game.playerRenderState = { alpha:ctx.globalAlpha, filter:ctx.filter, width:54, height:98, hurt:p.hurtCooldown>0 };
     ctx.restore();
   }
 
@@ -4568,6 +4563,7 @@
 
   window.addEventListener("keydown", (event) => {
     const key = event.key.toLowerCase();
+    if (!$("audio-overlay").classList.contains("hidden")) { if(key==="escape"){event.preventDefault();closeAudioSettings();} return; }
     if (!$("lab-overlay").classList.contains("hidden")) { if(key==="escape") $("lab-overlay").classList.add("hidden"); return; }
     if ((state !== "start" || key !== " ") && [" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
     if (state === "codex" && key === "escape") { event.preventDefault();closeCodex();return; }
@@ -4633,10 +4629,16 @@
     selectCharacter(button.dataset.character);
   }));
   document.querySelectorAll("[data-meta]").forEach((button) => button.addEventListener("click", () => upgradeMeta(button.dataset.meta)));
-  ui.sound.addEventListener("click", () => { sound.enabled = !sound.enabled; ui.sound.classList.toggle("muted", !sound.enabled); if (sound.enabled) sound.tone(520, .08, "sine", .04, 180); });
+  ui.sound.addEventListener("click", openAudioSettings);
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
+      audio69: () => sound.snapshot(),
+      trySkill69: () => activateSkill(),
+      ambientSpeech69: () => aiSay("这是一句普通场景提示。",3),
+      audioSetting: (key,value) => { sound.setSetting(key,value);renderAudioSettings();return sound.snapshot(); },
+      render69: () => ({ player:game?.playerRenderState||null, caches:companionSprites.map((sprite)=>({width:sprite.width,height:sprite.height})), subtitle:ui.aiSpeech.querySelector("span").textContent, protected:game?.voiceLineTime||0 }),
+      posePlayer: (hurt = 0, dash = 0) => { game.player.hurtCooldown=hurt;game.player.dashTime=dash;game.freezeTimer=999;return true; },
       preparation68: () => ({ step:preparationStep, character:selectedCharacter, weapon:selectedWeapon, state, transitioning:ui.start.classList.contains("is-switching") }),
       depth68: () => ({ player:{x:game.player.x,y:game.player.y}, stats:game.depthStats, props:window.WildrootDepth.props.map((prop)=>({...prop})) }),
       viewZone: (id = "home", night = false) => { const zone=zonePosition(id);game.player.x=zone.x+135;game.player.y=zone.y+145;game.camera.x=zone.x;game.camera.y=zone.y;game.phase=night?"night":"day";game.enemies.length=0;game.freezeTimer=999;ui.mission.classList.add("hidden");ui.terrainCard.classList.add("hidden");ui.aiSpeech.classList.add("hidden");game.toast.time=0;game.dayStoryShown[1]=true;return zone; },
@@ -4730,7 +4732,45 @@
     $("character-next").addEventListener("click", () => cyclePreparation(1));
     $("preparation-back").addEventListener("click", () => setPreparationStep("character"));
   }
+
+  let resumeAfterAudio = false, audioFocusBefore = null;
+  function renderAudioSettings() {
+    for (const key of ["music","sfx","voice"]) {
+      const value=Math.round(sound.settings[key]*100);
+      $(`${key}-volume`).value=value;$(`${key}-volume-label`).textContent=`${value}%`;
+    }
+    $("audio-mute").textContent=sound.enabled?"全部静音":"恢复声音";
+    $("audio-mute").setAttribute("aria-pressed",String(!sound.enabled));
+    [ui.sound,$("audio-btn")].forEach((button)=>{button.classList.toggle("muted",!sound.enabled);button.setAttribute("title",sound.enabled?"音乐与声音设置":"当前静音 · 打开声音设置");});
+  }
+  function openAudioSettings() {
+    if(!$("audio-overlay").classList.contains("hidden"))return;
+    sound.init();audioFocusBefore=document.activeElement;resumeAfterAudio=state==="playing";
+    if(resumeAfterAudio){state="paused";input.mouse.down=false;input.keys.clear();}
+    renderAudioSettings();$("audio-overlay").classList.remove("hidden");$("audio-close").focus({preventScroll:true});
+  }
+  function closeAudioSettings() {
+    $("audio-overlay").classList.add("hidden");
+    if(resumeAfterAudio&&state==="paused")state="playing";
+    resumeAfterAudio=false;if(audioFocusBefore?.isConnected)audioFocusBefore.focus({preventScroll:true});
+  }
+  function initializeAudioInterface() {
+    const unlock=(event)=>{if(event.isTrusted)sound.init();};
+    document.addEventListener("pointerdown",unlock,{capture:true});document.addEventListener("keydown",unlock,{capture:true});
+    $("audio-btn").addEventListener("click",openAudioSettings);$("audio-close").addEventListener("click",closeAudioSettings);
+    $("audio-overlay").addEventListener("click",(event)=>{if(event.target===$("audio-overlay"))closeAudioSettings();});
+    $("audio-overlay").addEventListener("keydown",(event)=>{
+      if(event.key!=="Tab")return;
+      const elements=[...$("audio-overlay").querySelectorAll("button,input")],first=elements[0],last=elements.at(-1);
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    });
+    for(const key of ["music","sfx","voice"])$(`${key}-volume`).addEventListener("input",(event)=>{sound.setSetting(key,Number(event.target.value)/100);renderAudioSettings();});
+    $("audio-mute").addEventListener("click",()=>{sound.enabled=!sound.enabled;renderAudioSettings();});
+    renderAudioSettings();
+  }
   initializeArtInterface();
+  initializeAudioInterface();
   setPreparationStep("character", false);
   companionAtlas.addEventListener("load", renderCompanionPortraits);
   renderCharacterDetail();

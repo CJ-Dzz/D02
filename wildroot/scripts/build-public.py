@@ -26,7 +26,7 @@ settings = "\n".join(
         ("props", "WILDROOT_PROP_ATLAS"),
     )
 )
-for name in ("game-config.js", "weapon-models.js", "world-depth.js", "game.js"):
+for name in ("game-config.js", "weapon-models.js", "world-depth.js", "character-voices.js", "audio-engine.js", "game.js"):
     code = (root / name).read_text(encoding="utf-8")
     if name == "game.js":
         code = settings + "\n" + code

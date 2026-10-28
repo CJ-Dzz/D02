@@ -74,6 +74,10 @@ window.WILDROOT_CONFIG = {
     maxPerDay: 4,
     weights: { rain: 1.3, composter: 1.1, seedcache: 1, memory: 0.7, workbench: 0.95, pollen: 0.8 }
   },
+  audio: {
+    bpm: 92,
+    lookahead: 0.3
+  },
   interface: {
     pluginPageSize: 8
   }
