@@ -26,6 +26,77 @@
   const DROP_CONFIG = Object.assign({ mergeRadius: 82, xpValueMultiplier: 1.18, waterChance: .12, biomassChance: .30, waterValue: 2, biomassValue: 2 }, CONFIG.drops || {});
   const BREEDING_CONFIG = Object.assign({ mutationBaseChance: .04, mutationPerDiversity: .045, ruinMutationBonus: .11, hybridBaseChance: .30, hybridMutationBonus: .10, hybridChanceCap: .88, hybridPityStep: .10, hybridPityCap: .40 }, CONFIG.breeding || {});
   const INTERFACE_CONFIG = Object.assign({ pluginPageSize: 8 }, CONFIG.interface || {});
+  const ART = { ink: "#344b39", paper: "#efecd5", jade: "#8ca779", gold: "#d7b969", coral: "#ca7c65", blue: "#86ada7", plum: "#938c9b" };
+  const companionAtlas = new Image();
+  companionAtlas.src = window.WILDROOT_COMPANION_ATLAS || "assets/companions-v66.png";
+  const enemyAtlas = new Image();
+  enemyAtlas.src = window.WILDROOT_ENEMY_ATLAS || "assets/enemies-v66.png";
+  const cropAtlas = new Image();
+  cropAtlas.src = window.WILDROOT_CROP_ATLAS || "assets/crops-v66.png";
+  const propAtlas = new Image();
+  propAtlas.src = window.WILDROOT_PROP_ATLAS || "assets/props-v66.png";
+  const PROP_SPRITES = { merchant:[25,25,638,603], chest:[682,158,551,470], pump:[35,640,513,575], greenhouse:[567,642,680,575] };
+  const ENEMY_SPRITES = {
+    mite: [0,90,305,320], spitter: [305,45,336,365], boar: [641,50,340,361], wasp: [985,70,269,342],
+    leech: [0,470,311,291], bloater: [318,430,323,331], thief: [641,438,340,326], healer: [982,425,272,345],
+    glitch: [0,822,244,379], crowboss: [244,762,365,438], slimeboss: [610,777,355,429], boss: [965,767,289,437]
+  };
+  const CROP_SPRITES = {
+    pepper: [27,50,265,370], sun: [340,49,285,370], thorn: [652,110,290,310], magnet: [970,100,270,320],
+    mint: [25,465,293,335], clone: [338,511,294,289], nut: [642,480,276,320], corn: [955,458,295,342],
+    peacannon: [0,842,326,353], solarforge: [339,819,291,387], cryoforge: [632,812,295,388], corncannon: [926,844,328,362]
+  };
+  function drawAtlasSprite(atlas, rect, x, baseline, maxWidth, maxHeight) {
+    if (!atlas.complete || !atlas.naturalWidth || !rect) return false;
+    const ratio = atlas.naturalWidth / 1254;
+    const scale = Math.min(maxWidth / rect[2], maxHeight / rect[3]);
+    const w = rect[2] * scale, h = rect[3] * scale;
+    ctx.drawImage(atlas, rect[0] * ratio, rect[1] * ratio, rect[2] * ratio, rect[3] * ratio, x - w / 2, baseline - h, w, h);
+    return true;
+  }
+  function assetPreview(atlas, rect, width = 64, height = 64) {
+    if (!atlas.complete || !atlas.naturalWidth || !rect) return null;
+    const image = document.createElement("canvas");image.width=width*2;image.height=height*2;
+    const context=image.getContext("2d");const ratio=atlas.naturalWidth/1254;
+    const scale=Math.min((image.width-8)/rect[2],(image.height-8)/rect[3]);
+    const w=rect[2]*scale,h=rect[3]*scale;
+    context.drawImage(atlas,...rect.map((value)=>value*ratio),(image.width-w)/2,(image.height-h)/2,w,h);
+    image.className="asset-preview";image.style.width=width+"px";image.style.height=height+"px";
+    return image;
+  }
+  const ICON_PATHS = {
+    leaf: '<path d="M5 19C2 7 9 3 21 3c0 12-5 17-16 16ZM5 19 16 8M9 15l-1-5M12 12h5"/>',
+    water: '<path d="M12 3C10 7 5 11 5 15a7 7 0 0 0 14 0c0-4-5-8-7-12Z"/><path d="M8 15c0 2 1 3 3 4"/>',
+    coin: '<path d="m12 3 8 9-8 9-8-9Z"/><path d="m12 7 4 5-4 5-4-5Z"/>',
+    pepper: '<path d="M10 7c9-3 12 10-6 14 5-5 2-8 6-14ZM11 8c-2-3 0-5 3-5M10 11l3 1"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+    thorn: '<path d="M4 15c-2-8 10-12 14-5l4-1v6l-5-1c-3 4-11 5-13 1Z"/><circle cx="11" cy="11" r="1"/><path d="M11 17v4M6 20l5 1 5-1"/>',
+    magnet: '<path d="M4 14V7a8 8 0 0 1 16 0v7h-5V7a3 3 0 0 0-6 0v7ZM4 11h5M15 11h5M8 19l-2 2M16 19l2 2"/>',
+    mint: '<path d="M12 2v20M3 7l18 10M3 17 21 7M8 4l4 4 4-4M8 20l4-4 4 4M3 11l5-1-1-5M21 13l-5 1 1 5"/>',
+    clone: '<rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M12 12h5M12 16h5"/>',
+    nut: '<path d="M6 21C2 9 5 3 12 3s10 6 6 18ZM12 4l-2 6 3 5-2 6M7 12h1M16 12h1"/>',
+    corn: '<path d="M8 19C4 8 9 2 12 2s8 6 4 17M5 11l7 11 7-11M10 6h4M9 10h6M10 14h4"/>',
+    rifle: '<path d="M3 10h14v6H3ZM17 11h5M9 16l-2 5H3l2-5M11 10V7h6v3M1 12h2"/>',
+    shotgun: '<path d="M3 9h17v7H3ZM15 9v7M20 10h3M20 14h3M6 16l-2 5M8 5h8"/>',
+    rail: '<path d="M2 10h19v6H2ZM5 8v10M10 8v10M15 8v10M21 12h3M7 16l-2 5"/>',
+    wand: '<path d="M3 22 16 9M8 16l-3-4M10 14l4 1M17 2l2 4 4 2-4 2-2 4-2-4-4-2 4-2Z"/>',
+    scythe: '<path d="M5 22 16 6M8 6c8-6 15 0 14 8-2-4-6-5-11-3M7 17l4 3"/>',
+    shield: '<path d="m12 2 9 4v6c0 5-5 8-9 10-4-2-9-5-9-10V6ZM8 12l3 3 5-6"/>',
+    heart: '<path d="M12 21C-5 11 5-3 12 7c7-10 17 4 0 14Z"/><path d="M7 12h3l2-3 2 6 2-3h2"/>',
+    boots: '<path d="M6 3h9v12l6 3v4H4V12h2ZM6 7h9M8 17h6"/>',
+    scope: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5"/>',
+    shovel: '<path d="M12 12v-8M8 3h8v4H8ZM6 12h12v4l-6 6-6-6Z"/>',
+    spark: '<path d="m14 2-9 12h7l-2 8 9-12h-7Z"/>',
+    chip: '<rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4M9 9h6v6H9Z"/>',
+    boss: '<path d="M4 7 2 3l7 3 3-4 3 4 7-3-2 4M5 8h14v9l-7 5-7-5Z"/><path d="m7 11 3 2M17 11l-3 2M10 17h4"/>',
+    bag: '<path d="M8 7 5 2h14l-3 5M7 7h10c7 11 5 15-5 15S0 18 7 7ZM12 10v8M9 14h6"/>',
+    plant: '<path d="M12 21V9M12 14C4 14 3 9 3 6c7-1 10 3 9 8ZM12 10C12 3 17 2 22 3c0 6-5 8-10 7M6 21h12"/>'
+  };
+  function uiIcon(id) {
+    const aliases = { growth: "water", armor: "shield", plating: "shield", carapace: "shield", cloak: "shield", stride: "boots", evasion: "scope", overdrive: "spark", trigger: "rifle", power: "spark", fertilizer: "plant", fieldkit: "heart", coolant: "mint", seedbag: "bag", sprout: "plant", beat: "spark", mochi: "shield", peacannon: "thorn", solarforge: "sun", cryoforge: "mint", corncannon: "corn", drone: "chip", compute: "chip", soil: "plant", backup: "heart", radar: "scope", memory: "chip", bond: "heart" };
+    const key = ICON_PATHS[id] ? id : aliases[id] || (/pepper|hot|explos/.test(id) ? "pepper" : /sun|solar/.test(id) ? "sun" : /pea|thorn/.test(id) ? "thorn" : /mint|frost|ice/.test(id) ? "mint" : /clone|mirror/.test(id) ? "clone" : /magnet|guid|pollen/.test(id) ? "magnet" : /melee|scythe|reap/.test(id) ? "scythe" : /shield|guard|wall/.test(id) ? "shield" : /water|irrig/.test(id) ? "water" : /corn/.test(id) ? "corn" : /weapon/.test(id) ? "rifle" : "chip");
+    return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[key]}</svg>`;
+  }
 
   const $ = (id) => document.getElementById(id);
   const ui = {
@@ -138,9 +209,9 @@
   };
 
   const CHARACTERS = {
-    sprout: { name: "小芽", code: "AI-07", color: "#9b84d4", body: "#ff87ad", damage: 1, fire: 1, growth: 1, shield: 0, aura: 1.18, skill: "丰收编译", skillIcon: "⌁", skillCopy: "催熟附近作物并发射种子齐射", skillDetail: "催熟 560 范围内作物 58%；每株成熟作物向目标发射 5 枚穿透种子。附近无作物时返还携带种子。", passive: "作物战斗光环范围 +18%", role: "射击与种田均衡联动", exclusive: "递归丰收指令", skillCd: 19, line: "均衡演算完成。让作物和枪一起上班！" },
-    beat: { name: "霹雳", code: "BEAT-02", color: "#ef6e83", body: "#ffb24f", damage: 1.12, fire: .9, growth: .9, shield: 0, aura: 1, skill: "雷暴节拍", skillIcon: "⚡", skillCopy: "让成熟作物充当导电桩发动雷击", skillDetail: "成熟作物越多，500 范围雷击越强、超频越久；没有成熟作物时只能产生较弱脉冲。", passive: "基础伤害 +12%，射击间隔 -10%", role: "依靠成熟作物放大爆发火力", exclusive: "安可超频模块", skillCd: 18, line: "节拍已对齐。先种导电桩，再让雷声开花！" },
-    mochi: { name: "奶泡", code: "MOCHI-11", color: "#61c9ad", body: "#86d9d0", damage: .92, fire: 1, growth: 1.25, shield: 20, aura: 1.08, skill: "泡泡温室", skillIcon: "♡", skillCopy: "生成护盾并灌溉所有作物", skillDetail: "获得 28 护盾并治疗 14 点生命；灌溉所有作物、推进 22% 生长，并消除身边敌弹。", passive: "作物生长 +25%，初始护盾 +20", role: "稳健守田与近战续航", exclusive: "软体温室协议", skillCd: 22, line: "软乎乎地种田，硬邦邦地打虫！" }
+    sprout: { name: "小芽", code: "AI-07", color: "#8ba273", body: "#c78e7c", damage: 1, fire: 1, growth: 1, shield: 0, aura: 1.18, skill: "丰收编译", skillIcon: "⌁", skillCopy: "催熟附近作物并发射种子齐射", skillDetail: "催熟 560 范围内作物 58%；每株成熟作物向目标发射 5 枚穿透种子。附近无作物时返还携带种子。", passive: "作物战斗光环范围 +18%", role: "射击与种田均衡联动", exclusive: "递归丰收指令", skillCd: 19, line: "均衡演算完成。让作物和枪一起上班！" },
+    beat: { name: "霹雳", code: "BEAT-02", color: "#c58c70", body: "#d5b16e", damage: 1.12, fire: .9, growth: .9, shield: 0, aura: 1, skill: "雷暴节拍", skillIcon: "⚡", skillCopy: "让成熟作物充当导电桩发动雷击", skillDetail: "成熟作物越多，500 范围雷击越强、超频越久；没有成熟作物时只能产生较弱脉冲。", passive: "基础伤害 +12%，射击间隔 -10%", role: "依靠成熟作物放大爆发火力", exclusive: "安可超频模块", skillCd: 18, line: "节拍已对齐。先种导电桩，再让雷声开花！" },
+    mochi: { name: "奶泡", code: "MOCHI-11", color: "#87aa91", body: "#b6c7ab", damage: .92, fire: 1, growth: 1.25, shield: 20, aura: 1.08, skill: "泡泡温室", skillIcon: "♡", skillCopy: "生成护盾并灌溉所有作物", skillDetail: "获得 28 护盾并治疗 14 点生命；灌溉所有作物、推进 22% 生长，并消除身边敌弹。", passive: "作物生长 +25%，初始护盾 +20", role: "稳健守田与近战续航", exclusive: "软体温室协议", skillCd: 22, line: "软乎乎地种田，硬邦邦地打虫！" }
   };
   let selectedCharacter = "sprout";
   let selectedWeapon = "rifle";
@@ -154,14 +225,14 @@
   };
 
   const CROP_TYPES = [
-    { id: "pepper", name: "火爆辣椒", color: "#ff6755", dark: "#9d342d", grow: 14, glyph: "◆", aura: "火焰爆破弹", passive: "收获横扫整行" },
-    { id: "sun", name: "向日葵", color: "#f6d95d", dark: "#b78132", grow: 16, glyph: "●", aura: "暴击阳光", passive: "周期产出阳光" },
-    { id: "thorn", name: "豌豆炮", color: "#80cf70", dark: "#397747", grow: 18, glyph: "✦", aura: "穿透豌豆", passive: "自动射击" },
-    { id: "magnet", name: "磁力菇", color: "#5fd0db", dark: "#337e8a", grow: 17, glyph: "◉", aura: "追踪磁弹", passive: "吸走资源与敌弹" },
-    { id: "mint", name: "寒冰菇", color: "#7fcff2", dark: "#477ca7", grow: 18, glyph: "❄", aura: "寒霜弹", passive: "收获全屏冻结" },
-    { id: "clone", name: "模仿菇", color: "#bd8df2", dark: "#7554a5", grow: 20, glyph: "♊", aura: "复制弹", passive: "模仿邻近作物" },
-    { id: "nut", name: "铁壳坚果", color: "#e4a25e", dark: "#75482f", grow: 19, glyph: "⬢", aura: "护甲种壳", passive: "替附近田地分摊伤害" },
-    { id: "corn", name: "玉米投手", color: "#ffd45f", dark: "#8b632d", grow: 19, glyph: "♨", aura: "爆米花弹", passive: "自动投掷范围玉米" }
+    { id: "pepper", name: "火爆辣椒", color: "#cf775d", dark: "#765345", grow: 14, glyph: "◆", aura: "火焰爆破弹", passive: "收获横扫整行" },
+    { id: "sun", name: "向日葵", color: "#d7bc67", dark: "#8f7643", grow: 16, glyph: "●", aura: "暴击阳光", passive: "周期产出阳光" },
+    { id: "thorn", name: "豌豆炮", color: "#91b277", dark: "#496b41", grow: 18, glyph: "✦", aura: "穿透豌豆", passive: "自动射击" },
+    { id: "magnet", name: "磁力菇", color: "#87b7ae", dark: "#4d7770", grow: 17, glyph: "◉", aura: "追踪磁弹", passive: "吸走资源与敌弹" },
+    { id: "mint", name: "寒冰菇", color: "#9abcc0", dark: "#5d7e83", grow: 18, glyph: "❄", aura: "寒霜弹", passive: "收获全屏冻结" },
+    { id: "clone", name: "模仿菇", color: "#a29cab", dark: "#6e6777", grow: 20, glyph: "♊", aura: "复制弹", passive: "模仿邻近作物" },
+    { id: "nut", name: "铁壳坚果", color: "#c5a16c", dark: "#765c43", grow: 19, glyph: "⬢", aura: "护甲种壳", passive: "替附近田地分摊伤害" },
+    { id: "corn", name: "玉米投手", color: "#dfc278", dark: "#927445", grow: 19, glyph: "♨", aura: "爆米花弹", passive: "自动投掷范围玉米" }
   ];
 
   const FIELD_ZONES = [
@@ -226,18 +297,18 @@
   ];
 
   const ENEMY_DATA = {
-    mite: { hp: 30, speed: 78, damage: 9, radius: 14, xp: 9, color: "#be6049", attacksCrops: true },
-    spitter: { hp: 48, speed: 52, damage: 8, radius: 17, xp: 14, color: "#9872a8" },
-    boar: { hp: 105, speed: 57, damage: 16, radius: 22, xp: 23, color: "#7f5747", attacksCrops: true },
-    wasp: { hp: 38, speed: 112, damage: 11, radius: 13, xp: 13, color: "#e6b854" },
-    leech: { hp: 72, speed: 67, damage: 12, radius: 18, xp: 18, color: "#7aa55c" },
-    bloater: { hp: 165, speed: 38, damage: 19, radius: 27, xp: 32, color: "#cf7996" },
-    thief: { hp: 82, speed: 105, damage: 8, radius: 17, xp: 28, color: "#e58e54", attacksCrops: true },
-    healer: { hp: 96, speed: 45, damage: 7, radius: 20, xp: 30, color: "#72c58d" },
-    glitch: { hp: 68, speed: 78, damage: 13, radius: 18, xp: 24, color: "#70b7e8" },
-    crowboss: { hp: 3200, speed: 96, damage: 21, radius: 43, xp: 220, color: "#584c78", bossName: "乱码鸦王" },
-    slimeboss: { hp: 6200, speed: 55, damage: 25, radius: 56, xp: 340, color: "#5ea887", bossName: "缓存史莱姆" },
-    boss: { hp: 11200, speed: 51, damage: 29, radius: 61, xp: 520, color: "#76517e", bossName: "枯穗暴君" }
+    mite: { hp: 30, speed: 78, damage: 9, radius: 14, xp: 9, color: "#bb8b6c", attacksCrops: true },
+    spitter: { hp: 48, speed: 52, damage: 8, radius: 17, xp: 14, color: "#9b9b89" },
+    boar: { hp: 105, speed: 57, damage: 16, radius: 22, xp: 23, color: "#8e8967", attacksCrops: true },
+    wasp: { hp: 38, speed: 112, damage: 11, radius: 13, xp: 13, color: "#c4af69" },
+    leech: { hp: 72, speed: 67, damage: 12, radius: 18, xp: 18, color: "#9ca86f" },
+    bloater: { hp: 165, speed: 38, damage: 19, radius: 27, xp: 32, color: "#b79883" },
+    thief: { hp: 82, speed: 105, damage: 8, radius: 17, xp: 28, color: "#bd9467", attacksCrops: true },
+    healer: { hp: 96, speed: 45, damage: 7, radius: 20, xp: 30, color: "#8eaa7a" },
+    glitch: { hp: 68, speed: 78, damage: 13, radius: 18, xp: 24, color: "#88a79e" },
+    crowboss: { hp: 3200, speed: 96, damage: 21, radius: 43, xp: 220, color: "#606e5b", bossName: "乱码鸦王" },
+    slimeboss: { hp: 6200, speed: 55, damage: 25, radius: 56, xp: 340, color: "#809d79", bossName: "缓存史莱姆" },
+    boss: { hp: 11200, speed: 51, damage: 29, radius: 61, xp: 520, color: "#737756", bossName: "枯穗暴君" }
   };
   const ENEMY_NAMES = { mite: "啃根虫", spitter: "吐籽怪", boar: "冲撞野猪", wasp: "飞刺蜂", leech: "吸能蛭", bloater: "臃肿孢体", thief: "掠种贼", healer: "修复者", glitch: "故障兽" };
 
@@ -275,9 +346,9 @@
     tone: i % 3
   }));
   const MAP_VARIANTS = [
-    { name: "苔原回潮", day: ["#9abb83", "#7fa878", "#69976f"], accent: "#d9ef9a", relic: "#648b62" },
-    { name: "锈沙花季", day: ["#b2ad78", "#949b6f", "#798c68"], accent: "#f2be73", relic: "#986c55" },
-    { name: "紫孢低地", day: ["#9aa783", "#7f9a7f", "#687f78"], accent: "#d6a4dc", relic: "#6e6687" }
+    { name: "苔原回潮", day: ["#a1ae8a", "#8d9c75", "#819269"], accent: "#d9ef9a", relic: "#648b62" },
+    { name: "锈沙花季", day: ["#afa884", "#9f9d77", "#89936d"], accent: "#f2be73", relic: "#986c55" },
+    { name: "紫孢低地", day: ["#a3aa8f", "#8e9b82", "#7b8e7d"], accent: "#d6a4dc", relic: "#6e6687" }
   ];
 
   function shuffled(values) {
@@ -548,7 +619,7 @@
     ui.storyChapter.textContent = line.chapter;
     ui.storyTitle.textContent = line.title;
     ui.storySpeaker.textContent = line.speaker;
-    ui.storyAvatar.textContent = line.avatar;
+    ui.storyAvatar.innerHTML = uiIcon(line.speaker === CHARACTERS[selectedCharacter].name ? selectedCharacter : "leaf");
     ui.storyText.textContent = line.text;
     $("story-next").querySelector("span").textContent = storyIndex === storySequence().length - 1 ? "进入荒野" : "继续";
   }
@@ -565,6 +636,7 @@
     input.keys.clear(); input.mouse.down = false;
     [ui.story, ui.choice, ui.pause, ui.end, ui.hud, ui.bossIntro, ui.codex, ui.restShop].forEach((element) => element.classList.add("hidden"));
     ui.start.classList.remove("hidden");
+    $("lab-overlay").classList.add("hidden");
     ui.event.classList.add("hidden");
     updateMetaDisplay();
   }
@@ -764,7 +836,7 @@
       const button = document.createElement("button");
       button.className = `merchant-card item-${item.id}`;
       button.style.setProperty("--item-color", item.color || "#d39d68");
-      button.innerHTML = `<span class="merchant-art" aria-hidden="true"><i>${item.icon}</i><u></u><u></u></span><span class="merchant-copy"><b>${item.name}</b><small>${item.copy}</small><em>${owned ? "已售罄" : `◆${item.cost}`}</em></span>`;
+      button.innerHTML = `<span class="merchant-art" aria-hidden="true"><i>${uiIcon(item.id)}</i><u></u><u></u></span><span class="merchant-copy"><b>${item.name}</b><small>${item.copy}</small><em>${owned ? "已售罄" : `◆${item.cost}`}</em></span>`;
       button.disabled = owned || game.coins < item.cost || game.phase !== "rest";
       button.addEventListener("click", () => buyMerchantItem(id));
       ui.merchantItems.appendChild(button);
@@ -811,7 +883,7 @@
       const unlockCost = seedUnlockPrice(unlockIndex);
       const unlock = document.createElement("button");
       unlock.className = "seed-unlock-card";
-      unlock.innerHTML = `<b>新种子蓝图</b>　${crop.glyph} ${crop.name}<small>${crop.aura} · ${crop.passive}</small><strong>解锁本局种植　◆${unlockCost}</strong>`;
+      unlock.innerHTML = `<span class="shop-seed-art">${uiIcon(crop.id)}</span><span><b>新种子蓝图 / ${crop.name}</b><small>${crop.aura} · ${crop.passive}</small></span><strong>解锁本局　◆${unlockCost}</strong>`;
       unlock.disabled = game.coins < unlockCost || game.phase !== "rest";
       unlock.addEventListener("click", buySeedUnlock);
       ui.restShopItems.appendChild(unlock);
@@ -829,7 +901,7 @@
       const crop = CROP_TYPES[index];
       const price = seedPrice(index);
       const button = document.createElement("button");
-      button.innerHTML = `${crop.glyph} ${crop.name} ×${SEED_CONFIG.packSize}　<strong>◆${price}</strong>`;
+      button.innerHTML = `${uiIcon(crop.id)} ${crop.name} ×${SEED_CONFIG.packSize}　<strong>◆${price}</strong>`;
       button.disabled = game.coins < price || game.phase !== "rest";
       button.addEventListener("click", () => buySeed(index));
       ui.restShopItems.appendChild(button);
@@ -844,7 +916,7 @@
       const button = document.createElement("button");
       button.className = "combo-card";
       button.innerHTML = unlocked
-        ? `${combo.icon} ${combo.name}　<strong>${owned ? "已装载" : `◆${combo.cost}`}</strong>`
+        ? `${uiIcon(combo.id)} ${combo.name}　<strong>${owned ? "已装载" : `◆${combo.cost}`}</strong>`
         : `🔒 ${combo.achievementName}　<strong>${combo.unlockCopy}</strong>`;
       button.disabled = !unlocked || owned || game.coins < combo.cost || game.phase !== "rest";
       button.addEventListener("click", () => buyComboCard(combo.id));
@@ -1038,6 +1110,12 @@
       if (entry.tab === "fusions" || entry.tab === "hybrids") return `<article class="codex-entry unknown hinted" style="border-color:${entry.color}"><span>配方线索 · 未完成</span><h3>${entry.name}</h3><p>${entry.copy}</p></article>`;
       return `<article class="codex-entry unknown">???<small>首次发现后解锁</small></article>`;
     }).join("");
+    [...ui.codexGrid.children].forEach((node,index)=>{
+      const entry=entries[index];if(!meta.discoveries[entry.key]&&!node.classList.contains("hinted")) return;
+      const key=entry.key.split(":")[1];
+      const preview=entry.tab==="crops"||entry.tab==="combos"?assetPreview(cropAtlas,CROP_SPRITES[key]):entry.tab==="enemies"||entry.tab==="bosses"?assetPreview(enemyAtlas,ENEMY_SPRITES[key]):null;
+      if(preview){node.prepend(preview);node.classList.add("illustrated");}
+    });
     const found = all.filter((entry) => meta.discoveries[entry.key]).length;
     ui.codexProgress.textContent = `已发现 ${found} / ${all.length} · 首次发现会直接奖励芽晶`;
   }
@@ -1092,7 +1170,9 @@
       boss: { icon: "✣", warning: "自适应生命与双重年轮；爆发要留给狂暴阶段" }
     }[type];
     ui.bossName.textContent = bossDisplayName(boss);
-    ui.bossIcon.textContent = intro.icon;
+    ui.bossIcon.innerHTML = uiIcon("boss");
+    const preview = assetPreview(enemyAtlas,ENEMY_SPRITES[type],110,110);
+    if(preview) ui.bossIcon.replaceChildren(preview);
     ui.bossWarning.textContent = `${variant.copy} ${intro.warning}`;
     ui.bossIntro.classList.remove("hidden");
     ui.bossIntro.style.animation = "none"; void ui.bossIntro.offsetWidth; ui.bossIntro.style.animation = "boss-intro 2.25s ease both";
@@ -2706,7 +2786,7 @@
       const card = document.createElement("button");
       card.className = "choice-card relic-card";
       card.style.setProperty("--card-color", relic.color);
-      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${relic.icon}</span><span class="card-type">关键遗物</span><h3>${relic.name}</h3><p>${relic.copy}</p><strong>本轮永久生效 · 唯一</strong>`;
+      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${uiIcon(relic.id)}</span><span class="card-type">关键遗物</span><h3>${relic.name}</h3><p>${relic.copy}</p><strong>本轮永久生效 · 唯一</strong>`;
       card.addEventListener("click", () => chooseRelic(relic));
       ui.choiceCards.appendChild(card);
     });
@@ -2752,11 +2832,11 @@
     { id: "autoseeder", icon: "⚙", type: "克制农机", name: "单格播种机", max: 2, color: "#d5ad6b", desc: (level) => `每 ${level === 1 ? "13" : "10"} 秒在身边${level === 1 ? "小" : "中"}范围播种一格。`, detail: "消耗当前种子、不收获且要求玩家靠近田地。", apply: () => {} },
     { id: "magnet", icon: "◉", type: "采集插件", name: "拾荒磁芯", max: 2, color: "#77dce5", desc: () => "拾取范围提高 50%。", detail: "少绕路，多打怪，超频更快。", apply: () => game.player.magnet *= 1.5 },
     { id: "armor", icon: "⬡", type: "守田插件", name: "果冻土壤", max: 3, color: "#c2b185", desc: () => "作物受到的伤害降低 26%。", detail: "软乎乎，但害兽咬不动。", apply: () => game.cropArmor *= 1.35 },
-    { id: "magnetplant", icon: "◉", type: "作物插件", name: "磁菇线圈", max: 3, color: "#5fd0db", desc: () => "磁力菇追踪与清弹收益提高 25%。", detail: "满级可与导航花粉融合。", apply: () => game.magnetPower *= 1.25 },
-    { id: "mintplant", icon: "❄", type: "作物插件", name: "寒冰菌核", max: 3, color: "#7fcff2", desc: () => "寒冰菇冻结时长提高 24%。", detail: "满级可与环绕叶刃融合。", apply: () => game.mintPower *= 1.24 },
-    { id: "cloneplant", icon: "♊", type: "作物插件", name: "模仿菌丝", max: 3, color: "#bd8df2", desc: () => "模仿菇持续时间提高 22%。", detail: "满级可与守田无人机融合。", apply: () => game.clonePower *= 1.22 },
-    { id: "nutplant", icon: "⬢", type: "作物插件", name: "坚果缓冲层", max: 3, color: "#e4a25e", desc: () => "铁壳坚果分摊伤害提高，并强化收获护盾。", detail: "在田地之间构成防线，让守田构筑更稳定。", apply: () => game.nutPower *= 1.2 },
-    { id: "cornplant", icon: "♨", type: "作物插件", name: "爆米花药室", max: 3, color: "#ffd45f", desc: () => "玉米投手伤害、爆炸半径与收获轰炸提高 25%。", detail: "强化玉米投手及其爆燃、冰霜杂交。", apply: () => game.cornPower *= 1.25 },
+    { id: "magnetplant", icon: "◉", type: "作物插件", name: "磁菇线圈", max: 3, color: "#87b7ae", desc: () => "磁力菇追踪与清弹收益提高 25%。", detail: "满级可与导航花粉融合。", apply: () => game.magnetPower *= 1.25 },
+    { id: "mintplant", icon: "❄", type: "作物插件", name: "寒冰菌核", max: 3, color: "#9abcc0", desc: () => "寒冰菇冻结时长提高 24%。", detail: "满级可与环绕叶刃融合。", apply: () => game.mintPower *= 1.24 },
+    { id: "cloneplant", icon: "♊", type: "作物插件", name: "模仿菌丝", max: 3, color: "#a29cab", desc: () => "模仿菇持续时间提高 22%。", detail: "满级可与守田无人机融合。", apply: () => game.clonePower *= 1.22 },
+    { id: "nutplant", icon: "⬢", type: "作物插件", name: "坚果缓冲层", max: 3, color: "#c5a16c", desc: () => "铁壳坚果分摊伤害提高，并强化收获护盾。", detail: "在田地之间构成防线，让守田构筑更稳定。", apply: () => game.nutPower *= 1.2 },
+    { id: "cornplant", icon: "♨", type: "作物插件", name: "爆米花药室", max: 3, color: "#dfc278", desc: () => "玉米投手伤害、爆炸半径与收获轰炸提高 25%。", detail: "强化玉米投手及其爆燃、冰霜杂交。", apply: () => game.cornPower *= 1.25 },
     { id: "orbit", icon: "✺", type: "近战农具", name: "环绕叶刃", max: 3, color: "#91e2c7", desc: () => "成熟作物在附近或拥有丰收动能时，增加一枚环绕叶刃。", detail: "离开农田且动能耗尽后叶刃停转；满级可与寒冰菌核融合。", apply: () => game.orbitLevel++ },
     { id: "sproutcore", character: "sprout", icon: "⌁", type: "小芽专属", name: "递归丰收指令", max: 2, color: "#a88ee4", desc: (level) => `丰收编译催熟量与齐射数量提高 ${level * 18}%。`, detail: "只有小芽能够读取的农业底层指令。", apply: () => {} },
     { id: "beatcore", character: "beat", icon: "♫", type: "霹雳专属", name: "安可超频模块", max: 2, color: "#ff8a72", desc: (level) => `雷暴节拍伤害和超频时长提高 ${level * 16}%。`, detail: "让雷击的最后一拍重新成为第一拍。", apply: () => {} },
@@ -2768,9 +2848,9 @@
     { id: "solarwall", name: "太阳能防火墙", icon: "☀", color: "#ffe06d", req: { sun: 3, shield: 2 }, copy: "阳光缓存 LV.3 × 果皮防火墙 LV.2", effect: "护盾自动恢复，向日葵收获清除附近敌弹" },
     { id: "recursive", name: "递归豌豆算法", icon: "✣", color: "#83db82", req: { thorn: 3, spark: 3 }, copy: "豌豆训练 LV.3 × 光合节拍器 LV.3", effect: "每次击杀都会向四周分裂追踪弹幕" },
     { id: "farmbrain", name: "全自动农场主脑", icon: "◎", color: "#9c8df5", req: { drone: 3, growth: 3 }, copy: "守田无人机 LV.3 × 量子水壶 LV.3", effect: "无人机双发，并定期自动灌溉缺水作物" },
-    { id: "stormseek", name: "磁暴追猎协议", icon: "⌁", color: "#5fd0db", req: { magnetplant: 3, homing: 3 }, copy: "磁菇线圈 LV.3 × 导航花粉 LV.3", effect: "所有弹丸获得强追踪，磁力菇收获牵引资源并清弹" },
-    { id: "permafrost", name: "永冻叶轮", icon: "❉", color: "#7fcff2", req: { mintplant: 3, orbit: 3 }, copy: "寒冰菌核 LV.3 × 环绕叶刃 LV.3", effect: "叶刃持续冻结敌人，寒冰菇收获造成全图碎冰伤害" },
-    { id: "mirrorgarden", name: "镜像农场集群", icon: "♊", color: "#bd8df2", req: { cloneplant: 3, drone: 3 }, copy: "模仿菌丝 LV.3 × 守田无人机 LV.3", effect: "模仿光环额外多发，无人机永久增加一发镜像弹" },
+    { id: "stormseek", name: "磁暴追猎协议", icon: "⌁", color: "#87b7ae", req: { magnetplant: 3, homing: 3 }, copy: "磁菇线圈 LV.3 × 导航花粉 LV.3", effect: "所有弹丸获得强追踪，磁力菇收获牵引资源并清弹" },
+    { id: "permafrost", name: "永冻叶轮", icon: "❉", color: "#9abcc0", req: { mintplant: 3, orbit: 3 }, copy: "寒冰菌核 LV.3 × 环绕叶刃 LV.3", effect: "叶刃持续冻结敌人，寒冰菇收获造成全图碎冰伤害" },
+    { id: "mirrorgarden", name: "镜像农场集群", icon: "♊", color: "#a29cab", req: { cloneplant: 3, drone: 3 }, copy: "模仿菌丝 LV.3 × 守田无人机 LV.3", effect: "模仿光环额外多发，无人机永久增加一发镜像弹" },
     { id: "reaper", name: "生命收割回路", icon: "☽", color: "#ff9f6d", req: { scythecore: 3, pepper: 3 }, copy: "月芽磨盘 LV.3 × 辣椒燃烧芯 LV.3", effect: "辣椒农能扩展挥砍范围，命中多个目标时恢复生命" },
     { id: "turret", name: "固定丰收炮台", icon: "⌂", color: "#79d6a3", req: { anchor: 3, growth: 2 }, copy: "扎根协议 LV.3 × 量子水壶 LV.2", effect: "靠近成熟作物蓄满后额外增伤并持续恢复护盾" }
   ];
@@ -2851,7 +2931,7 @@
       const card = document.createElement("button");
       card.className = `choice-card${fusionReady ? " fusion-ready" : ""}${milestone ? " relic-card" : ""}`;
       card.style.setProperty("--card-color", item.color);
-      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${item.icon}</span><span class="card-type">${item.type}</span><h3>${item.name}</h3><p>${item.desc(nextLevel)}</p><span class="item-level">LV.${currentLevel} → LV.${nextLevel}</span><strong>${milestone ? `仅在每 ${PROGRESSION_CONFIG.statNodeEvery} 级出现` : fusionReady ? "选择后立即完成融合！" : recipe ? `合成线索：${recipe.name}` : item.detail}</strong>`;
+      card.innerHTML = `<span class="card-index">0${index + 1}</span><span class="card-icon">${uiIcon(item.id)}</span><span class="card-type">${item.type}</span><h3>${item.name}</h3><p>${item.desc(nextLevel)}</p><span class="item-level">LV.${currentLevel} → LV.${nextLevel}</span><strong>${milestone ? `仅在每 ${PROGRESSION_CONFIG.statNodeEvery} 级出现` : fusionReady ? "选择后立即完成融合！" : recipe ? `合成线索：${recipe.name}` : item.detail}</strong>`;
       card.addEventListener("click", () => milestone ? chooseStatTalent(item) : chooseItem(item));
       ui.choiceCards.appendChild(card);
     });
@@ -2941,6 +3021,12 @@
     game.buildEntryCount = entries.length;
     game.buildPage = clamp(game.buildPage, 0, pages - 1);
     ui.buildItems.innerHTML = entries.slice(game.buildPage * pageSize, (game.buildPage + 1) * pageSize).join("");
+    [...ui.buildItems.children].forEach((entry, index) => {
+      const textNode = [...entry.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+      const label = entry.getAttribute("title") || "";
+      const icon = /主武器/.test(label) ? game.weapon : /收割/.test(label) ? "scythe" : /阳|日/.test(label) ? "sun" : /辣/.test(label) ? "pepper" : /冰|冷/.test(label) ? "mint" : /护|盾|甲/.test(label) ? "shield" : /豆/.test(label) ? "thorn" : /玉米/.test(label) ? "corn" : /磁/.test(label) ? "magnet" : /生|农/.test(label) ? "plant" : /速|移/.test(label) ? "boots" : "chip";
+      if (textNode) { const wrap = document.createElement("span"); wrap.innerHTML = uiIcon(icon); textNode.replaceWith(wrap); }
+    });
     ui.buildPage.textContent = `${game.buildPage + 1} / ${pages}`;
     ui.buildPrev.disabled = game.buildPage <= 0;
     ui.buildNext.disabled = game.buildPage >= pages - 1;
@@ -2948,7 +3034,8 @@
 
   function renderCharacterDetail() {
     const character = CHARACTERS[selectedCharacter];
-    ui.characterDetailIcon.textContent = character.skillIcon;
+    ui.characterDetailIcon.innerHTML = uiIcon(selectedCharacter);
+    document.querySelector(".portrait").dataset.character = selectedCharacter;
     ui.characterDetailSkill.textContent = `主动 · ${character.skill}`;
     ui.characterDetailCd.textContent = `${character.skillCd} 秒`;
     ui.characterDetailCopy.textContent = character.skillDetail;
@@ -2975,7 +3062,7 @@
     for (let i = 0; i < count; i++) {
       const a = rand(0, TAU);
       const v = rand(speed * .25, speed);
-      game.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(.22, .56), maxLife: .56, size: rand(2, 6), color, alpha: 1, shape: chance(.2) ? "circle" : "square" });
+      game.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(.24, .6), maxLife: .6, size: rand(2, 5), color, alpha: .85, shape: chance(.22) ? "petal" : chance(.3) ? "spark" : "circle", angle: a });
     }
   }
 
@@ -3140,7 +3227,10 @@
     ui.overclockText.textContent = overclockActive ? `${game.overclockTime.toFixed(1)}s` : `${Math.floor(game.overclock)}%`;
     ui.overclockFill.closest(".overclock-meter").classList.toggle("active", overclockActive);
     ui.skillName.textContent = character.skill;
-    ui.skillIcon.textContent = character.skillIcon;
+    if (ui.skillIcon.dataset.character !== game.character) {
+      ui.skillIcon.innerHTML = uiIcon(game.character);
+      ui.skillIcon.dataset.character = game.character;
+    }
     ui.skillCopy.textContent = p.skillCooldown > 0 ? `冷却 ${p.skillCooldown.toFixed(1)} 秒` : character.skillCopy;
     ui.skillFill.style.transform = `scaleX(${clamp(1 - p.skillCooldown / p.skillMax, 0, 1)})`;
     ui.skillFill.closest(".skill-status").classList.toggle("ready", p.skillCooldown <= 0);
@@ -3266,10 +3356,11 @@
       ctx.beginPath(); ctx.moveTo(196, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    ctx.fillStyle = night ? "#383951" : "#eee8ff";
+    ctx.fillStyle = "#e9ecd9";
     ctx.fillRect(0, 0, 196, H);
-    ctx.fillStyle = night ? "#34354cbb" : "#fff8e8b8";
+    ctx.fillStyle = "#f0efdf";
     ctx.fillRect(196, 0, W - 196, 72);
+    ctx.strokeStyle="#b4c09b";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(196,0);ctx.lineTo(196,H);ctx.moveTo(0,72);ctx.lineTo(W,72);ctx.stroke();
     ctx.fillStyle = night ? "rgba(64,54,102,.24)" : progress > .74 ? "rgba(255,145,132,.12)" : "rgba(255,244,167,.035)";
     ctx.fillRect(196, 72, W - 196, H - 72);
   }
@@ -3285,14 +3376,14 @@
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
     for (let i = 0; i < scenery.length; i += 7) {
       const s = scenery[i];
-      ctx.fillStyle = night ? (i % 14 ? "#72837c38" : "#384f5b35") : (i % 14 ? "#c4df8738" : "#4e96673a");
-      ctx.beginPath(); ctx.ellipse(s.x, s.y, 38 + s.size * 5, 18 + s.size * 3, (s.x + s.y) * .001, 0, TAU); ctx.fill();
+      ctx.fillStyle = night ? (i % 14 ? "#72837c22" : "#384f5b22") : (i % 14 ? "#c4cf9424" : "#647d5b22");
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, 21 + s.size * 4, 10 + s.size * 2, (s.x + s.y) * .001, 0, TAU); ctx.fill();
       if (i % 21 === 0) {
         ctx.fillStyle = night ? "#59606c" : "#7f8974"; ctx.strokeStyle = night ? "#9295a5" : "#c8c6aa"; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(s.x - 13, s.y + 6); ctx.lineTo(s.x - 4, s.y - 10); ctx.lineTo(s.x + 13, s.y - 7); ctx.lineTo(s.x + 18, s.y + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
       }
     }
-    ctx.strokeStyle = night ? "#d5d7f21c" : "#ffffff22";
+    ctx.strokeStyle = night ? "#bac6b00b" : "#f2f0d50c";
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); ctx.stroke(); }
     for (let y = 0; y <= WORLD_H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); ctx.stroke(); }
@@ -3306,10 +3397,10 @@
     for (const s of scenery) {
       if (Math.abs(s.x - WORLD_W / 2) < 230 && Math.abs(s.y - WORLD_H / 2) < 210) continue;
       const sway = Math.sin(t * 1.7 + s.x) * 2;
-      ctx.strokeStyle = night ? "#8ca49a" : s.tone === 0 ? "#72b875" : s.tone === 1 ? "#5da96a" : "#a0b85c";
+      ctx.strokeStyle = night ? "#8ca49a" : s.tone === 0 ? "#7d966b" : s.tone === 1 ? "#6f8963" : "#939b68";
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + sway, s.y - s.size * 2.1); ctx.stroke();
-      ctx.fillStyle = night ? "#c6b9d7" : s.tone === 2 ? "#ffe17d" : s.tone === 1 ? "#ff9eb8" : "#eef7a2";
+      ctx.fillStyle = night ? "#c6b9d7" : s.tone === 2 ? "#d9cc8a" : s.tone === 1 ? "#bf9b80" : "#c6d298";
       ctx.beginPath(); ctx.arc(s.x + sway, s.y - s.size * 2.4, 2.2, 0, TAU); ctx.fill();
     }
     ctx.strokeStyle = "#fff8"; ctx.lineWidth = 10; ctx.strokeRect(5, 5, WORLD_W - 10, WORLD_H - 10);
@@ -3318,6 +3409,11 @@
   function drawMapLandmarks(t, style, night) {
     ctx.save();
     const dim = night ? .7 : 1;
+    if (propAtlas.complete && propAtlas.naturalWidth) {
+      ctx.globalAlpha=.82;
+      drawAtlasSprite(propAtlas,PROP_SPRITES.greenhouse,420,242,182,158);
+      ctx.globalAlpha=1;
+    }
     // 破碎温室：玻璃骨架、轨道与废弃培养舱。
     ctx.strokeStyle = night ? "#a9c4c6aa" : "#e5f2c5aa"; ctx.lineWidth = 5;
     for (let i = -1; i <= 1; i++) {
@@ -3396,11 +3492,19 @@
     if (hasTerrain("irrigation")) {
       const s = game.irrigation;
       ctx.save(); ctx.translate(s.x, s.y);
+      if (propAtlas.complete && propAtlas.naturalWidth) {
+        ctx.strokeStyle = s.captured ? "#9cb986" : s.contested ? "#c58a6b" : "#d7c589";ctx.lineWidth=2;ctx.setLineDash([6,5]);
+        ctx.beginPath();ctx.ellipse(0,15,44,24,0,0,TAU);ctx.stroke();ctx.setLineDash([]);
+        drawAtlasSprite(propAtlas,PROP_SPRITES.pump,0,22,71,80);
+        ctx.fillStyle="#314c38e8";ctx.beginPath();ctx.roundRect(-32,30,64,14,3);ctx.fill();ctx.fillStyle="#dbdfb6";ctx.font="500 8px 'Microsoft YaHei UI'";ctx.textAlign="center";ctx.fillText(s.captured?"已占领":s.contested?"争夺中":`靠近占领 ${Math.round(s.progress/3*100)}%`,0,40);
+        ctx.restore();
+        return;
+      }
       ctx.fillStyle = s.captured ? "#68dcc4" : s.contested ? "#ef7780" : "#f1cf73";
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 33, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#4e566b"; ctx.fillRect(-7, -24, 14, 48); ctx.fillRect(-24, -7, 48, 14);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.globalAlpha = .7; ctx.beginPath(); ctx.arc(0, 0, 48, -Math.PI / 2, -Math.PI / 2 + TAU * (s.captured ? 1 : s.progress / 3)); ctx.stroke();
-      ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.font = "900 10px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(s.captured ? "已占领" : s.contested ? "争夺中" : "靠近占领", 0, 58); ctx.restore();
+      ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.font = "600 10px 'Microsoft YaHei UI'"; ctx.textAlign = "center"; ctx.fillText(s.captured ? "已占领" : s.contested ? "争夺中" : "靠近占领", 0, 58); ctx.restore();
     }
   }
 
@@ -3428,31 +3532,24 @@
   function drawFarm() {
     ctx.save();
     for (const zone of FIELD_ZONES) {
-      const center = zonePosition(zone.id);
-      const farmX = center.x - 105, farmY = center.y - 95;
-      ctx.fillStyle = "#322c3a42"; roundRect(farmX + 9, farmY + 13, 210, 190, 23); ctx.fill();
-      ctx.fillStyle = game.phase === "night" ? "#505769db" : `${zone.color}c9`;
-      ctx.strokeStyle = zone.color; ctx.lineWidth = 5;
-      roundRect(farmX, farmY, 210, 190, 23); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = game.phase === "night" ? "#34364a42" : "#7e6e5338"; ctx.lineWidth = 2;
-      for (let x = farmX + 14; x < farmX + 205; x += 20) { ctx.beginPath(); ctx.moveTo(x, farmY + 8); ctx.lineTo(x - 28, farmY + 181); ctx.stroke(); }
-      ctx.strokeStyle = game.phase === "night" ? "#86a6aa55" : "#8ec8be77"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(farmX + 8, center.y); ctx.quadraticCurveTo(center.x, center.y + 12, farmX + 202, center.y); ctx.stroke();
-      ctx.fillStyle = game.phase === "night" ? "#6d5962" : "#a87655";
-      for (let x = farmX - 6; x <= farmX + 216; x += 37) { ctx.fillRect(x, farmY - 5, 5, 17); ctx.fillRect(x, farmY + 178, 5, 17); }
-      ctx.fillRect(farmX - 5, farmY, 4, 190); ctx.fillRect(farmX + 211, farmY, 4, 190);
-      ctx.strokeStyle = game.phase === "night" ? "#9a7f86" : "#d6a572"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(farmX - 4, farmY + 7); ctx.lineTo(farmX + 214, farmY + 7); ctx.moveTo(farmX - 4, farmY + 183); ctx.lineTo(farmX + 214, farmY + 183); ctx.stroke();
-      ctx.fillStyle = "#3f354ecc"; ctx.beginPath(); ctx.roundRect(center.x - 76, farmY - 18, 152, 28, 10); ctx.fill();
-      ctx.fillStyle = "#fff9eb"; ctx.textAlign = "center"; ctx.font = "900 11px 'Microsoft YaHei'"; ctx.fillText(zone.name, center.x, farmY - 5);
-      ctx.fillStyle = "#e0d6e7"; ctx.font = "7px 'Microsoft YaHei'"; ctx.fillText(zone.copy, center.x, farmY + 5);
-      for (const side of [-1, 1]) {
-        const lampX = center.x + side * 91;
-        ctx.strokeStyle = "#6a5260"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(lampX, farmY + 19); ctx.lineTo(lampX, farmY - 9); ctx.stroke();
-        ctx.fillStyle = game.phase === "night" ? "#fff18a" : "#ffe0a2"; ctx.shadowColor = "#ffe874"; ctx.shadowBlur = game.phase === "night" ? 14 : 3; ctx.beginPath(); ctx.arc(lampX, farmY - 12, 5, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
-      }
+      const center=zonePosition(zone.id), x=center.x-105, y=center.y-95;
+      const night=game.phase==="night";
+      ctx.fillStyle="#30483030";ctx.beginPath();ctx.roundRect(x+4,y+8,210,190,10);ctx.fill();
+      const soil=ctx.createLinearGradient(x,y,x+210,y+190);
+      soil.addColorStop(0,night?"#6b7558":"#a5a477");soil.addColorStop(1,night?"#596649":"#888d60");
+      ctx.fillStyle=soil;ctx.strokeStyle=night?"#a4ae81":"#c1bd8b";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,210,190,8);ctx.fill();ctx.stroke();
+      ctx.strokeStyle=night?"#384b3d40":"#5d6b4133";ctx.lineWidth=1;
+      for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(x+9+i*17,y+9);ctx.lineTo(x+9+i*17,y+181);ctx.stroke();}
+      ctx.strokeStyle="#a0b7a26b";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x+4,center.y+1);ctx.quadraticCurveTo(center.x,center.y+9,x+206,center.y+1);ctx.stroke();
+      ctx.strokeStyle="#6a7550";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x,y+3);ctx.lineTo(x+210,y+3);ctx.moveTo(x,y+187);ctx.lineTo(x+210,y+187);ctx.stroke();
+      ctx.strokeStyle="#b7af7a";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+210,y);ctx.moveTo(x,y+184);ctx.lineTo(x+210,y+184);ctx.stroke();
+      for(const xx of [x+3,x+207]) for(const yy of [y+3,y+187]){ctx.fillStyle="#6c7350";ctx.beginPath();ctx.roundRect(xx-4,yy-4,8,12,2);ctx.fill();ctx.fillStyle="#c0b77f";ctx.beginPath();ctx.arc(xx,yy,1.4,0,TAU);ctx.fill();}
+      ctx.fillStyle="#e2e2bdef";ctx.strokeStyle="#879467";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(center.x-68,y-27,136,24,3);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#536b42";ctx.textAlign="center";ctx.font="600 10px 'Microsoft YaHei UI'";ctx.fillText(zone.name,center.x,y-14);
+      ctx.fillStyle="#8c9a74";ctx.font="500 6px 'Microsoft YaHei UI'";ctx.fillText(zone.copy,center.x,y-6);
+      for(const side of [-1,1]){const lx=center.x+side*94;ctx.strokeStyle="#68734e";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,y+17);ctx.lineTo(lx,y-12);ctx.stroke();ctx.fillStyle=night?"#e2d18d":"#cab97a";ctx.beginPath();ctx.roundRect(lx-3,y-17,6,9,2);ctx.fill();}
     }
-    for (const plot of game.plots) drawPlot(plot);
+    for(const plot of game.plots) drawPlot(plot);
     drawMerchantNpc();
     ctx.restore();
   }
@@ -3461,6 +3558,13 @@
     const home = zonePosition("home");
     const x = home.x + 155, y = home.y + 118;
     ctx.save(); ctx.translate(x, y);
+    if (propAtlas.complete && propAtlas.naturalWidth) {
+      ctx.fillStyle="#324a3033";ctx.beginPath();ctx.ellipse(7,17,36,11,0,0,TAU);ctx.fill();
+      drawAtlasSprite(propAtlas,PROP_SPRITES.merchant,4,21,101,101);
+      ctx.fillStyle="#ecedcdee";ctx.strokeStyle="#7d9564";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(-45,-91,91,17,3);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#5a7547";ctx.font="500 9px 'Microsoft YaHei UI'";ctx.textAlign="center";ctx.fillText(game.phase==="rest"?"阿栓 / 商店营业中":"阿栓 / 休整见",0,-79);
+      ctx.restore();return;
+    }
     ctx.fillStyle = "#51445f"; ctx.beginPath(); ctx.ellipse(0, 14, 26, 12, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = "#f5c47d"; ctx.beginPath(); ctx.roundRect(-17, -21, 34, 38, 8); ctx.fill();
     ctx.strokeStyle = "#fff0d0"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-14,-12); ctx.lineTo(-27,2); ctx.moveTo(14,-12); ctx.lineTo(27,2); ctx.stroke();
@@ -3475,7 +3579,7 @@
     ctx.fillStyle="#ffe078"; ctx.font="900 8px ui-monospace"; ctx.fillText("?",43,9);
     ctx.fillStyle = game.phase === "rest" ? "#fff7c2" : "#e6dce9"; ctx.strokeStyle = "#50445f"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.roundRect(-48, -76, 96, 22, 8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#40354c"; ctx.textAlign = "center"; ctx.font = "900 9px 'Microsoft YaHei'";
+    ctx.fillStyle = "#40354c"; ctx.textAlign = "center"; ctx.font = "600 9px 'Microsoft YaHei UI'";
     ctx.fillText(game.phase === "rest" ? "阿栓商店营业中" : "阿栓 · 休整见", 0, -62);
     ctx.restore();
   }
@@ -3525,7 +3629,7 @@
     ctx.save(); ctx.translate(0, y); ctx.lineJoin = "round"; ctx.lineCap = "round";
     ctx.shadowColor = combo.color; ctx.shadowBlur = 10 + pulse * 3;
     if (combo.id === "peacannon") {
-      ctx.fillStyle = "#4e5960"; ctx.strokeStyle = "#fff4da"; ctx.lineWidth = 2.5;
+      ctx.fillStyle = "#4e5960"; ctx.strokeStyle = "#5b6846"; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.roundRect(-25, 3, 50, 17, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#79956d"; ctx.beginPath(); ctx.arc(-17, 20, 7, 0, TAU); ctx.arc(17, 20, 7, 0, TAU); ctx.fill();
       for (const side of [-1, 1]) {
@@ -3542,7 +3646,7 @@
       ctx.fillStyle = "#d58d38"; ctx.strokeStyle = "#fffbd0"; ctx.beginPath(); ctx.arc(0, -4, 11 + pulse, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#fff7b3"; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { ctx.beginPath(); ctx.arc(i * 4, -4 + j * 4, 1, 0, TAU); ctx.fill(); }
     } else if (combo.id === "corncannon") {
-      ctx.fillStyle = "#7c6848"; ctx.strokeStyle = "#fff2c0"; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(-26, 5, 48, 16, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#7c6848"; ctx.strokeStyle = "#6f7147"; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(-26, 5, 48, 16, 6); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#58724e"; ctx.beginPath(); ctx.arc(-18, 21, 8, 0, TAU); ctx.arc(16, 21, 8, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = combo.color; ctx.beginPath(); ctx.roundRect(-15, -11, 41, 15, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#5d4939"; ctx.beginPath(); ctx.arc(26, -3.5, 8, 0, TAU); ctx.fill(); ctx.stroke();
@@ -3583,6 +3687,12 @@
     ctx.fillStyle = plot.wet > 0 ? "#72c9d780" : "#c798654d";
     for (const px of [-19, 0, 19]) { ctx.beginPath(); ctx.arc(px, 17, plot.wet > 0 ? 2.5 : 1.7, 0, TAU); ctx.fill(); }
 
+    if (plot.state !== "empty" && cropAtlas.complete && cropAtlas.naturalWidth) {
+      drawCultivatedSprite(plot, crop);
+      ctx.restore();
+      return;
+    }
+
     if (plot.state !== "empty") {
       const ratio = clamp(plot.growth / crop.grow, 0, 1);
       const scale = .35 + ratio * .75;
@@ -3614,19 +3724,16 @@
         }
         if (plot.hybrid) {
           const hybrid = HYBRIDS.find((entry) => entry.id === plot.hybrid);
-          const left = CROP_TYPES[hybrid.pair[0]], right = CROP_TYPES[hybrid.pair[1]];
           drawHybridPlantModel(hybrid, scale, plot.sway);
           ctx.fillStyle = "#30273a"; ctx.beginPath(); ctx.roundRect(-32, -64 * scale, 64, 14, 6); ctx.fill();
-          ctx.fillStyle = hybrid.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`杂交 · ${hybrid.name}`, 0, -54 * scale);
+          ctx.fillStyle = hybrid.color; ctx.font = "600 8px 'Microsoft YaHei UI'"; ctx.textAlign = "center"; ctx.fillText(`杂交 · ${hybrid.name}`, 0, -54 * scale);
           if (plot.state === "ready") { ctx.fillStyle = "#fff"; ctx.font = "900 6px 'Microsoft YaHei'"; ctx.fillText("E 收获永久属性", 0, -43 * scale); }
         }
         if (plot.comboPlant) {
           const combo = COMBO_PLANTS.find((entry) => entry.id === plot.comboPlant);
-          ctx.fillStyle = "#44384f"; ctx.strokeStyle = combo.color; ctx.lineWidth = 4;
-          ctx.beginPath(); ctx.roundRect(-29, -54 * scale, 58, 40, 10); ctx.fill(); ctx.stroke();
           drawComboPlantModel(combo, scale, plot.sway);
           ctx.fillStyle = "#30273a"; ctx.beginPath(); ctx.roundRect(-38, -76 * scale, 76, 14, 6); ctx.fill();
-          ctx.fillStyle = combo.color; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`组合 · ${combo.name}`, 0, -66 * scale);
+          ctx.fillStyle = combo.color; ctx.font = "600 8px 'Microsoft YaHei UI'"; ctx.textAlign = "center"; ctx.fillText(`组合 · ${combo.name}`, 0, -66 * scale);
           if (plot.state === "ready") { ctx.fillStyle = "#fff"; ctx.font = "900 6px 'Microsoft YaHei'"; ctx.fillText("E 收获强化属性", 0, -57 * scale); }
         }
       }
@@ -3648,6 +3755,46 @@
       ctx.fillStyle = "#d65a50"; ctx.fillRect(-20, -35, 40 * (plot.hp / plot.maxHp), 4);
     }
     ctx.restore();
+  }
+
+  function drawCultivatedSprite(plot, crop) {
+    const ratio = clamp(plot.growth / crop.grow, 0, 1);
+    const sway = Math.sin(plot.sway * 2.2) * .025;
+    ctx.save(); ctx.rotate(sway);
+    if (plot.hit > 0) ctx.filter = "brightness(1.5)";
+    if (plot.comboPlant) {
+      drawAtlasSprite(cropAtlas, CROP_SPRITES[plot.comboPlant], 0, 14, 79, 72);
+    } else if (plot.hybrid) {
+      const hybrid = HYBRIDS.find((entry) => entry.id === plot.hybrid);
+      ctx.strokeStyle = "#9fba7b"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-16,-15); ctx.quadraticCurveTo(0,21,17,-15); ctx.stroke();
+      drawAtlasSprite(cropAtlas, CROP_SPRITES[CROP_TYPES[hybrid.pair[0]].id], -14, 10, 34, 47);
+      drawAtlasSprite(cropAtlas, CROP_SPRITES[CROP_TYPES[hybrid.pair[1]].id], 14, 10, 34, 47);
+      ctx.fillStyle = "#d3bd75"; ctx.strokeStyle = "#efebcc"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(5,-15); ctx.lineTo(0,-10); ctx.lineTo(-5,-15); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (ratio < .25) {
+      ctx.strokeStyle = "#7e9a62"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,12);ctx.lineTo(0,-2-ratio*22);ctx.stroke();
+      ctx.fillStyle = "#a2bd7c"; ctx.beginPath(); ctx.ellipse(-5,-3,8,4,.5,0,TAU);ctx.ellipse(5,-6,8,4,-.5,0,TAU);ctx.fill();
+    } else {
+      const size = .53 + ratio * .47;
+      drawAtlasSprite(cropAtlas, CROP_SPRITES[crop.id], 0, 13, 51 * size, 62 * size);
+    }
+    ctx.restore();
+    if (plot.comboPlant || plot.hybrid) {
+      const entry = plot.comboPlant ? COMBO_PLANTS.find((item) => item.id === plot.comboPlant) : HYBRIDS.find((item) => item.id === plot.hybrid);
+      const y = plot.comboPlant ? -72 : -55;
+      ctx.fillStyle = "#2f4939ed"; ctx.strokeStyle = "#a3b77d"; ctx.lineWidth=1; ctx.beginPath();ctx.roundRect(-38,y-10,76,16,3);ctx.fill();ctx.stroke();
+      ctx.fillStyle = "#e7e5bd";ctx.font="500 8px 'Microsoft YaHei UI'";ctx.textAlign="center";ctx.fillText(entry.name,0,y+1);
+    }
+    if (plot.mutation) {
+      ctx.strokeStyle="#e4cf83";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,-19,27+Math.sin(plot.sway*3)*2,-.4,1.9);ctx.stroke();
+      ctx.fillStyle="#eee1a5";ctx.beginPath();ctx.arc(-20,-34,2,0,TAU);ctx.fill();
+    }
+    if (plot.state === "growing") {
+      ctx.fillStyle="#334b33b0";ctx.beginPath();ctx.roundRect(-23,26,46,3,1);ctx.fill();ctx.fillStyle=plot.wet>0?"#a8c18b":"#b59f73";ctx.fillRect(-22,27,44*ratio,1);
+    } else {
+      ctx.fillStyle="#d9d8ae";ctx.beginPath();ctx.arc(0,25,2,0,TAU);ctx.fill();
+    }
+    if (plot.hp < plot.maxHp) {ctx.fillStyle="#364734";ctx.fillRect(-20,31,40,3);ctx.fillStyle="#c68e6d";ctx.fillRect(-20,31,40*plot.hp/plot.maxHp,3);}
   }
 
   function drawCropFruit(type, x, y, size) {
@@ -3725,12 +3872,18 @@
       ctx.beginPath(); ctx.moveTo(-11, 0); ctx.lineTo(0, -6); ctx.lineTo(11, 0); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     }
 
+    if (companionAtlas.complete && companionAtlas.naturalWidth) {
+      ctx.fillStyle="#30473045"; ctx.beginPath(); ctx.ellipse(0,15,20,8,0,0,TAU); ctx.fill();
+      ctx.save();
+      if (Math.cos(p.angle) < -.15) ctx.scale(-1,1);
+      if (p.hurtCooldown > .55) ctx.filter="brightness(1.55)";
+      const index = ["sprout","beat","mochi"].indexOf(game.character);
+      const cell = companionAtlas.naturalWidth / 3;
+      ctx.drawImage(companionAtlas,index*cell,65,cell,930,-23,-65,46,84);
+      ctx.restore();
+    } else { ctx.save(); ctx.rotate(p.angle); drawAiBody(game.character, character); ctx.restore(); }
     ctx.rotate(p.angle);
-    ctx.scale(1.08, 1.08);
-    ctx.shadowColor = game.phase === "night" ? "#fff1c6" : character.color;
-    ctx.shadowBlur = game.phase === "night" ? 10 : 4;
-    drawAiBody(game.character, character);
-    ctx.shadowBlur = 0;
+    ctx.scale(.86,.86);
     if (p.attackMode === "melee") {
       ctx.strokeStyle = "#654b5e"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(45, 9); ctx.stroke();
       ctx.strokeStyle = "#fff5c1"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, 7); ctx.lineTo(45, 7); ctx.stroke();
@@ -3742,36 +3895,36 @@
   }
 
   function drawWeaponModel(weapon) {
-    ctx.save(); ctx.translate(11, 0); ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.lineJoin = "round";
+    ctx.save(); ctx.translate(11, 0); ctx.strokeStyle = "#e9e4cd"; ctx.lineWidth = 3; ctx.lineJoin = "round";
     if (weapon === "shotgun") {
-      ctx.fillStyle = "#7d5b55"; ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(8,-9); ctx.lineTo(8,9); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#e98b67"; ctx.beginPath(); ctx.roundRect(5, -9, 30, 18, 6); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#594d64"; for (const y of [-5, 1, 7]) ctx.fillRect(29, y - 2, 15, 4);
-      ctx.fillStyle = "#ffd39a"; for (const y of [-5, 1, 7]) ctx.fillRect(41, y - 2, 4, 4);
+      ctx.fillStyle = "#746449"; ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(8,-9); ctx.lineTo(8,9); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#b48c63"; ctx.beginPath(); ctx.roundRect(5, -9, 30, 18, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#4f5a43"; for (const y of [-5, 1, 7]) ctx.fillRect(29, y - 2, 15, 4);
+      ctx.fillStyle = "#d3bb78"; for (const y of [-5, 1, 7]) ctx.fillRect(41, y - 2, 4, 4);
     } else if (weapon === "rail") {
-      ctx.fillStyle = "#4e536b"; ctx.beginPath(); ctx.roundRect(-3, -8, 51, 16, 4); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#6bc7d1"; ctx.fillRect(3, -5, 39, 10);
-      ctx.strokeStyle = "#d8ffff"; ctx.lineWidth = 2; for (let x = 8; x < 42; x += 9) { ctx.beginPath(); ctx.arc(x,0,6,0,TAU); ctx.stroke(); }
-      ctx.fillStyle = "#ffe36b"; ctx.fillRect(11, -2, 27, 4); ctx.fillStyle = "#5a4c67"; ctx.fillRect(46, -4, 13, 8);
-      ctx.fillStyle = "#73edf2"; ctx.beginPath(); ctx.arc(58,0,3 + Math.sin(game.elapsed * 8),0,TAU); ctx.fill();
+      ctx.fillStyle = "#465d4a"; ctx.beginPath(); ctx.roundRect(-3, -8, 51, 16, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#86a99a"; ctx.fillRect(3, -5, 39, 10);
+      ctx.strokeStyle = "#c7d7b8"; ctx.lineWidth = 2; for (let x = 8; x < 42; x += 9) { ctx.beginPath(); ctx.arc(x,0,6,0,TAU); ctx.stroke(); }
+      ctx.fillStyle = "#cfb96f"; ctx.fillRect(11, -2, 27, 4); ctx.fillStyle = "#506147"; ctx.fillRect(46, -4, 13, 8);
+      ctx.fillStyle = "#a2cbb5"; ctx.beginPath(); ctx.arc(58,0,3 + Math.sin(game.elapsed * 8),0,TAU); ctx.fill();
     } else if (weapon === "wand") {
-      ctx.strokeStyle = "#71579c"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-2, 3); ctx.quadraticCurveTo(18,-5,39,0); ctx.stroke();
-      ctx.strokeStyle = "#9fe0a2"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(5,1); ctx.quadraticCurveTo(17,9,29,-1); ctx.stroke();
-      ctx.fillStyle="#84cf81"; ctx.beginPath(); ctx.ellipse(19,4,6,3,.5,0,TAU); ctx.fill();
-      ctx.fillStyle = "#83e0c4"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, 0, 9 + Math.sin(game.elapsed * 6) * 2, 0, TAU); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#fff07b"; ctx.beginPath(); ctx.arc(43, 0, 3, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#6e7951"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-2, 3); ctx.quadraticCurveTo(18,-5,39,0); ctx.stroke();
+      ctx.strokeStyle = "#99b27f"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(5,1); ctx.quadraticCurveTo(17,9,29,-1); ctx.stroke();
+      ctx.fillStyle="#8ba76b"; ctx.beginPath(); ctx.ellipse(19,4,6,3,.5,0,TAU); ctx.fill();
+      ctx.fillStyle = "#a5c59b"; ctx.strokeStyle = "#e9e4cd"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, 0, 9 + Math.sin(game.elapsed * 6) * 2, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#d9cb85"; ctx.beginPath(); ctx.arc(43, 0, 3, 0, TAU); ctx.fill();
     } else {
-      ctx.fillStyle = "#65536a"; ctx.beginPath(); ctx.moveTo(-7,-4); ctx.lineTo(8,-9); ctx.lineTo(12,8); ctx.lineTo(-5,8); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.roundRect(5, -8, 35, 16, 5); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#ff668f"; ctx.beginPath(); ctx.roundRect(13,-5,15,10,4); ctx.fill();
-      ctx.strokeStyle = "#785b87"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(31,-11); ctx.lineTo(38,-11); ctx.lineTo(41,-6); ctx.stroke();
-      ctx.fillStyle = "#ffdb68"; ctx.beginPath(); ctx.arc(41, 0, 5 + (game.weaponShotCount % 6 === 5 ? 2 : 0), 0, TAU); ctx.fill();
+      ctx.fillStyle = "#59674c"; ctx.beginPath(); ctx.moveTo(-7,-4); ctx.lineTo(8,-9); ctx.lineTo(12,8); ctx.lineTo(-5,8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#dedac0"; ctx.beginPath(); ctx.roundRect(5, -8, 35, 16, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#b58a61"; ctx.beginPath(); ctx.roundRect(13,-5,15,10,4); ctx.fill();
+      ctx.strokeStyle = "#75805a"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(31,-11); ctx.lineTo(38,-11); ctx.lineTo(41,-6); ctx.stroke();
+      ctx.fillStyle = "#d0b66e"; ctx.beginPath(); ctx.arc(41, 0, 5 + (game.weaponShotCount % 6 === 5 ? 2 : 0), 0, TAU); ctx.fill();
     }
     ctx.restore();
   }
 
   function drawAiBody(type, character) {
-    ctx.fillStyle = "#51445e48";
+    ctx.fillStyle = "#31462c35";
     ctx.beginPath(); ctx.ellipse(-3, 15, 19, 8, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = "#4e5366"; ctx.strokeStyle = "#fff1dc"; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.roundRect(-22, -12, 15, 25, 6); ctx.fill(); ctx.stroke();
@@ -3799,7 +3952,7 @@
       ctx.fillStyle = character.color; ctx.beginPath(); ctx.moveTo(-16,-12); ctx.lineTo(7,-18); ctx.lineTo(14,-4); ctx.lineTo(1,9); ctx.lineTo(-17,4); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#fff5e5"; ctx.beginPath(); ctx.roundRect(-7,-10,17,14,7); ctx.fill();
       ctx.fillStyle = "#fff171"; ctx.fillRect(1,-8,8,3); ctx.fillRect(3,-2,6,3);
-      ctx.fillStyle = "#55445f"; ctx.beginPath(); ctx.arc(1,-7,1.7,0,TAU); ctx.fill();
+      ctx.fillStyle = "#3b4c39"; ctx.beginPath(); ctx.arc(1,-7,1.7,0,TAU); ctx.fill();
       ctx.fillStyle = "#fff"; ctx.strokeStyle="#8c5367"; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(7,-9,25,7,3); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.roundRect(7,2,22,7,3); ctx.fill(); ctx.stroke();
       ctx.fillStyle="#ffcf4e"; ctx.fillRect(27,-7,7,4); ctx.fillRect(25,4,7,4);
     } else if (type === "mochi") {
@@ -3840,6 +3993,13 @@
       ctx.save();
       ctx.translate(e.x, e.y);
       if (e.enter > 0) ctx.scale(1 + e.enter * .4, 1 + e.enter * .4);
+      if (enemyAtlas.complete && enemyAtlas.naturalWidth && ENEMY_SPRITES[e.type]) {
+        drawEnemyArtwork(e);
+        ctx.restore();
+        if (e.affix) { ctx.fillStyle="#e4ddaa";ctx.font="500 8px 'Microsoft YaHei UI'";ctx.textAlign="center";ctx.fillText(e.eliteName,e.x,e.y-e.radius*2-17); }
+        if (isBossType(e.type) || e.affix || e.hp < e.maxHp * .98) drawEnemyHealth(e);
+        continue;
+      }
       if (e.affix) {
         ctx.strokeStyle = e.eliteColor; ctx.lineWidth = 4; ctx.globalAlpha = .7 + Math.sin(e.age * 5) * .18;
         ctx.beginPath(); ctx.arc(0, 0, e.radius + 8, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -3855,48 +4015,64 @@
       else drawExtraEnemy(e);
       ctx.filter = "none";
       ctx.restore();
-      if (e.affix) { ctx.fillStyle = e.eliteColor; ctx.font = "900 9px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText(`${ELITE_AFFIXES.find((a) => a.id === e.affix).icon}${e.eliteName}`, e.x, e.y - e.radius - 16); }
+      if (e.affix) { ctx.fillStyle = e.eliteColor; ctx.font = "600 9px 'Microsoft YaHei UI'"; ctx.textAlign = "center"; ctx.fillText(`${ELITE_AFFIXES.find((a) => a.id === e.affix).icon}${e.eliteName}`, e.x, e.y - e.radius - 16); }
       if (isBossType(e.type) || e.affix || e.hp < e.maxHp * .98) drawEnemyHealth(e);
     }
   }
 
+  function drawEnemyArtwork(e) {
+    const boss = isBossType(e.type);
+    const size = e.radius * (boss ? 3.25 : 3.2);
+    ctx.fillStyle="#233e2a40";ctx.beginPath();ctx.ellipse(0,e.radius*.55,e.radius*1.04,e.radius*.45,0,0,TAU);ctx.fill();
+    if (e.affix) {ctx.strokeStyle=e.eliteColor;ctx.lineWidth=2;ctx.setLineDash([4,6]);ctx.beginPath();ctx.ellipse(0,e.radius*.55,e.radius+8,(e.radius+8)*.5,0,0,TAU);ctx.stroke();ctx.setLineDash([]);}
+    ctx.save();
+    if (Math.cos(e.facing)<0) ctx.scale(-1,1);
+    const bob = Math.sin(e.age * (e.type === "wasp" ? 16 : 6)) * (boss ? 2 : 1.4);
+    ctx.translate(0,bob);
+    if(e.hit>0) ctx.filter="brightness(1.65) saturate(.65)";
+    else if((e.frozen||0)>0) ctx.filter="sepia(.3) hue-rotate(115deg) saturate(.65)";
+    drawAtlasSprite(enemyAtlas,ENEMY_SPRITES[e.type],0,e.radius*.7,size,size);
+    ctx.restore();
+    if(boss&&e.enrageStage>0){ctx.strokeStyle="#ca986b99";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,e.radius+10,e.age*.3,e.age*.3+Math.PI*.8);ctx.stroke();}
+  }
+
   function drawMite(e) {
-    ctx.strokeStyle = "#714c70"; ctx.lineWidth = 4;
+    ctx.strokeStyle = "#655a45"; ctx.lineWidth = 4;
     for (const side of [-1, 1]) for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.moveTo(i * 3, side * 7); ctx.lineTo(-6 + i * 4, side * (17 + Math.sin(e.age * 9 + i) * 3)); ctx.stroke();
     }
-    ctx.fillStyle = e.hit ? "#fff" : "#ff8d9e";
-    ctx.beginPath(); ctx.ellipse(0, 0, 15, 11, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = "#fff4e7"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = e.hit ? "#fff" : "#bd8c74";
+    ctx.beginPath(); ctx.ellipse(0, 0, 15, 11, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = "#3d523c"; ctx.lineWidth = 3; ctx.stroke();
     ctx.strokeStyle = "#b75471"; ctx.lineWidth = 1.5; for (const x of [-6,0,6]) { ctx.beginPath(); ctx.moveTo(x,-8); ctx.lineTo(x,8); ctx.stroke(); }
-    ctx.strokeStyle = "#714c70"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(11,-7); ctx.quadraticCurveTo(20,-14,23,-8); ctx.moveTo(11,7); ctx.quadraticCurveTo(20,14,23,8); ctx.stroke();
+    ctx.strokeStyle = "#655a45"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(11,-7); ctx.quadraticCurveTo(20,-14,23,-8); ctx.moveTo(11,7); ctx.quadraticCurveTo(20,14,23,8); ctx.stroke();
     ctx.fillStyle = "#fff2b5"; ctx.beginPath(); ctx.arc(7,-5,2.2,0,TAU); ctx.arc(7,5,2.2,0,TAU); ctx.fill();
-    ctx.strokeStyle = "#5c465e"; ctx.lineWidth = 2;
+    ctx.strokeStyle = "#4f523a"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(10, -2); ctx.moveTo(10, -5); ctx.lineTo(5, -2); ctx.moveTo(5, 5); ctx.lineTo(10, 2); ctx.moveTo(10, 5); ctx.lineTo(5, 2); ctx.stroke();
   }
 
   function drawSpitter(e) {
-    ctx.fillStyle = e.hit ? "#fff" : "#8a72b5";
+    ctx.fillStyle = e.hit ? "#fff" : "#8b8c7e";
     for (let i = 0; i < 7; i++) {
       const a = (TAU * i) / 7;
       ctx.beginPath(); ctx.arc(Math.cos(a) * 13, Math.sin(a) * 13, 6, 0, TAU); ctx.fill();
     }
-    ctx.fillStyle = e.hit ? "#fff" : "#b994d6";
-    ctx.beginPath(); ctx.arc(0, 0, 13, 0, TAU); ctx.fill(); ctx.strokeStyle = "#fff4e7"; ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = "#55445f"; ctx.beginPath(); ctx.arc(8, 0, 5, 0, TAU); ctx.fill();
+    ctx.fillStyle = e.hit ? "#fff" : "#abb09a";
+    ctx.beginPath(); ctx.arc(0, 0, 13, 0, TAU); ctx.fill(); ctx.strokeStyle = "#3d523c"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = "#3b4c39"; ctx.beginPath(); ctx.arc(8, 0, 5, 0, TAU); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(10, -1, 1.8, 0, TAU); ctx.fill();
     ctx.strokeStyle = "#d7b5ec"; ctx.lineWidth = 1.5; for (let i=0;i<7;i++){const a=TAU*i/7;ctx.beginPath();ctx.moveTo(Math.cos(a)*7,Math.sin(a)*7);ctx.lineTo(Math.cos(a)*18,Math.sin(a)*18);ctx.stroke();}
     ctx.fillStyle = "#a8e4bd"; ctx.globalAlpha = .8; ctx.beginPath(); ctx.arc(17, 1, 2.5 + Math.sin(e.age * 8), 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
   }
 
   function drawBoar(e) {
-    ctx.fillStyle = e.hit ? "#fff" : "#77caa0";
-    ctx.beginPath(); ctx.ellipse(0, 0, 24, 17, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = "#fff4e7"; ctx.lineWidth = 4; ctx.stroke();
-    ctx.fillStyle = "#a8dfb6"; ctx.beginPath(); ctx.ellipse(16, 0, 12, 11, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = e.hit ? "#fff" : "#97aa77";
+    ctx.beginPath(); ctx.ellipse(0, 0, 24, 17, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = "#3d523c"; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = "#b8c590"; ctx.beginPath(); ctx.ellipse(16, 0, 12, 11, 0, 0, TAU); ctx.fill();
     ctx.strokeStyle = "#efe1ba"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(18, -5); ctx.quadraticCurveTo(31, -11, 27, -17); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(18, 5); ctx.quadraticCurveTo(31, 11, 27, 17); ctx.stroke();
-    ctx.fillStyle = "#55445f"; ctx.beginPath(); ctx.arc(19, -5, 2, 0, TAU); ctx.arc(19, 5, 2, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#5f7f6f"; ctx.strokeStyle = "#d9f0d7"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12,-14);ctx.lineTo(-22,-25);ctx.lineTo(-2,-18);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle = "#3b4c39"; ctx.beginPath(); ctx.arc(19, -5, 2, 0, TAU); ctx.arc(19, 5, 2, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#5f7f6f"; ctx.strokeStyle = "#6a7953"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12,-14);ctx.lineTo(-22,-25);ctx.lineTo(-2,-18);ctx.closePath();ctx.fill();ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-12,14);ctx.lineTo(-22,25);ctx.lineTo(-2,18);ctx.closePath();ctx.fill();ctx.stroke();
     ctx.fillStyle="#406557"; ctx.fillRect(-15,-13,7,26); ctx.strokeStyle="#b4d9bf"; ctx.beginPath();ctx.moveTo(-3,-14);ctx.lineTo(-3,14);ctx.stroke();
     ctx.strokeStyle="#56485a";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-12,-16);ctx.lineTo(-16,-22);ctx.moveTo(-12,16);ctx.lineTo(-16,22);ctx.stroke();
@@ -3904,32 +4080,32 @@
 
   function drawExtraEnemy(e) {
     const isWasp = e.type === "wasp";
-    ctx.fillStyle = e.hit ? "#fff" : e.color; ctx.strokeStyle = "#fff4e7"; ctx.lineWidth = 3;
+    ctx.fillStyle = e.hit ? "#fff" : e.color; ctx.strokeStyle = "#3d523c"; ctx.lineWidth = 3;
     if (isWasp) {
       ctx.beginPath(); ctx.ellipse(-4, 0, 16, 9, 0, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#584750"; for (let x = -9; x < 8; x += 8) ctx.fillRect(x, -8, 4, 16);
-      ctx.fillStyle = "#dff8ffbb"; ctx.beginPath(); ctx.ellipse(-5, -11, 10, 5, -.3, 0, TAU); ctx.ellipse(-5, 11, 10, 5, .3, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#e3e9cd99"; ctx.beginPath(); ctx.ellipse(-5, -11, 10, 5, -.3, 0, TAU); ctx.ellipse(-5, 11, 10, 5, .3, 0, TAU); ctx.fill();
       ctx.fillStyle="#fff2a1";ctx.beginPath();ctx.arc(9,-4,2,0,TAU);ctx.arc(9,4,2,0,TAU);ctx.fill();ctx.fillStyle="#65434b";ctx.beginPath();ctx.moveTo(-20,0);ctx.lineTo(-30,-5);ctx.lineTo(-30,5);ctx.closePath();ctx.fill();
     } else if (e.type === "thief") {
-      ctx.fillStyle = e.hit ? "#fff" : "#e58e54"; ctx.beginPath(); ctx.roundRect(-15,-12,29,24,9); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = e.hit ? "#fff" : "#bd9467"; ctx.beginPath(); ctx.roundRect(-15,-12,29,24,9); ctx.fill(); ctx.stroke();
       ctx.fillStyle="#6d5064"; ctx.beginPath(); ctx.arc(-15,0,10,0,TAU); ctx.fill();
       ctx.fillStyle="#fff"; ctx.beginPath(); ctx.roundRect(0,-8,13,16,6); ctx.fill();
       ctx.fillStyle="#4e3c4d"; ctx.fillRect(6,-6,3,4); ctx.fillRect(6,2,3,4);
       ctx.strokeStyle="#ffe078"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(13,-6); ctx.lineTo(22,0); ctx.lineTo(13,6); ctx.stroke();
     } else if (e.type === "healer") {
-      ctx.fillStyle=e.hit?"#fff":"#72c58d"; ctx.beginPath(); ctx.arc(0,0,19,0,TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=e.hit?"#fff":"#8eaa7a"; ctx.beginPath(); ctx.arc(0,0,19,0,TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle="#eaffed"; ctx.fillRect(-4,-12,8,24); ctx.fillRect(-12,-4,24,8);
       ctx.strokeStyle="#91efad88"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,25+Math.sin(e.age*5)*3,0,TAU); ctx.stroke();
       ctx.fillStyle="#dffff0";for(let i=0;i<3;i++){const a=e.age+i*TAU/3;ctx.beginPath();ctx.ellipse(Math.cos(a)*27,Math.sin(a)*27,5,2.5,a,0,TAU);ctx.fill();}
     } else if (e.type === "glitch") {
-      ctx.save(); ctx.translate(Math.sin(e.age*22)*3,0); ctx.fillStyle=e.hit?"#fff":"#70b7e8";
-      ctx.fillRect(-15,-15,30,30); ctx.strokeRect(-15,-15,30,30); ctx.fillStyle="#ff7faa"; ctx.fillRect(-10,-8,9,6); ctx.fillStyle="#fff16e"; ctx.fillRect(4,2,12,5); ctx.fillStyle="#d7f3ff";ctx.fillRect(-20,-3,8,3);ctx.fillRect(12,-12,9,4);ctx.fillRect(9,10,6,3);ctx.restore();
+      ctx.save(); ctx.translate(Math.sin(e.age*22)*3,0); ctx.fillStyle=e.hit?"#fff":"#88a79e";
+      ctx.fillRect(-15,-15,30,30); ctx.strokeRect(-15,-15,30,30); ctx.fillStyle="#ca927e"; ctx.fillRect(-10,-8,9,6); ctx.fillStyle="#d6c27d"; ctx.fillRect(4,2,12,5); ctx.fillStyle="#d7f3ff";ctx.fillRect(-20,-3,8,3);ctx.fillRect(12,-12,9,4);ctx.fillRect(9,10,6,3);ctx.restore();
     } else {
       const lobes = e.type === "bloater" ? 8 : 5;
       for (let i = 0; i < lobes; i++) { const a = TAU * i / lobes; ctx.beginPath(); ctx.arc(Math.cos(a) * e.radius * .55, Math.sin(a) * e.radius * .55, e.radius * .48, 0, TAU); ctx.fill(); }
       ctx.beginPath(); ctx.arc(0, 0, e.radius * .65, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(e.radius * .25, -4, 4, 0, TAU); ctx.fill();
-      ctx.fillStyle="#55445f";ctx.beginPath();ctx.arc(e.radius*.34,-4,1.7,0,TAU);ctx.fill();ctx.strokeStyle="#fff3dc99";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,e.radius*.38,.5,2.3);ctx.stroke();
+      ctx.fillStyle="#3b4c39";ctx.beginPath();ctx.arc(e.radius*.34,-4,1.7,0,TAU);ctx.fill();ctx.strokeStyle="#fff3dc99";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,e.radius*.38,.5,2.3);ctx.stroke();
     }
   }
 
@@ -3937,14 +4113,14 @@
     ctx.rotate(-e.facing);
     if (e.type === "crowboss") { drawCrowBoss(e); return; }
     if (e.type === "slimeboss") { drawSlimeBoss(e); return; }
-    const bossColor = e.type === "crowboss" ? "#51496f" : e.type === "slimeboss" ? "#4f9f7f" : "#72547e";
+    const bossColor = e.type === "crowboss" ? "#505d49" : e.type === "slimeboss" ? "#4f9f7f" : "#6b7758";
     ctx.strokeStyle = bossColor; ctx.lineWidth = 8;
     for (let i = 0; i < 8; i++) {
       const a = (TAU * i) / 8 + e.age * .18;
       ctx.beginPath(); ctx.moveTo(Math.cos(a) * 24, Math.sin(a) * 24); ctx.lineTo(Math.cos(a) * 58, Math.sin(a) * 58); ctx.stroke();
     }
     ctx.fillStyle = e.hit ? "#fff" : e.color;
-    ctx.beginPath(); ctx.arc(0, 0, e.radius * .86, 0, TAU); ctx.fill(); ctx.strokeStyle = "#fff3e6"; ctx.lineWidth = 6; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, e.radius * .86, 0, TAU); ctx.fill(); ctx.strokeStyle = "#40513e"; ctx.lineWidth = 6; ctx.stroke();
     ctx.fillStyle = "#684c72";
     ctx.beginPath(); ctx.arc(0, 0, 29, 0, TAU); ctx.fill();
     ctx.fillStyle = "#ff95bd";
@@ -3964,30 +4140,30 @@
 
   function drawCrowBoss(e) {
     const flap = Math.sin(e.age * 7) * 10;
-    ctx.fillStyle = e.hit ? "#fff" : "#51496f"; ctx.strokeStyle = "#fff3e6"; ctx.lineWidth = 5;
+    ctx.fillStyle = e.hit ? "#fff" : "#505d49"; ctx.strokeStyle = "#40513e"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-19, -8); ctx.quadraticCurveTo(-65, -43 - flap, -78, 4); ctx.quadraticCurveTo(-49, -5, -24, 19); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(19, -8); ctx.quadraticCurveTo(65, -43 - flap, 78, 4); ctx.quadraticCurveTo(49, -5, 24, 19); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = e.hit ? "#fff" : "#6b5a91"; ctx.beginPath(); ctx.arc(0, 0, 38, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = e.hit ? "#fff" : "#79836b"; ctx.beginPath(); ctx.arc(0, 0, 38, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-12, -7, 7, 0, TAU); ctx.arc(12, -7, 7, 0, TAU); ctx.fill();
     ctx.fillStyle = "#3d304e"; ctx.beginPath(); ctx.arc(-10, -6, 3, 0, TAU); ctx.arc(10, -6, 3, 0, TAU); ctx.fill();
     ctx.fillStyle = "#ffe169"; ctx.beginPath(); ctx.moveTo(-13, 3); ctx.lineTo(0, 25); ctx.lineTo(13, 3); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#ff86a7"; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-12 + i * 12, -35 - Math.abs(i - 1) * 4, 6, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = "#c48d6c"; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-12 + i * 12, -35 - Math.abs(i - 1) * 4, 6, 0, TAU); ctx.fill(); }
   }
 
   function drawSlimeBoss(e) {
     const wobble = Math.sin(e.age * 5) * 5;
-    ctx.fillStyle = e.hit ? "#fff" : "#69bf91"; ctx.strokeStyle = "#f4fff2"; ctx.lineWidth = 6;
+    ctx.fillStyle = e.hit ? "#fff" : "#9aad7e"; ctx.strokeStyle = "#f4fff2"; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.moveTo(-48, 30); ctx.quadraticCurveTo(-58, -18 + wobble, -29, -42); ctx.quadraticCurveTo(0, -60 - wobble, 29, -42); ctx.quadraticCurveTo(58, -18 - wobble, 48, 30); ctx.quadraticCurveTo(22, 48 + wobble, 0, 37); ctx.quadraticCurveTo(-22, 48 - wobble, -48, 30); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#a5e6b8"; ctx.globalAlpha = .7; ctx.beginPath(); ctx.ellipse(-18, -25, 15, 9, -.4, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#cad4a1"; ctx.globalAlpha = .7; ctx.beginPath(); ctx.ellipse(-18, -25, 15, 9, -.4, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-15, -4, 8, 0, TAU); ctx.arc(15, -4, 8, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#395e55"; ctx.beginPath(); ctx.arc(-13, -2, 3, 0, TAU); ctx.arc(13, -2, 3, 0, TAU); ctx.fill();
-    ctx.strokeStyle = "#397967"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 12, 13, .1, Math.PI - .1); ctx.stroke();
+    ctx.fillStyle = "#42583c"; ctx.beginPath(); ctx.arc(-13, -2, 3, 0, TAU); ctx.arc(13, -2, 3, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#607b4d"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 12, 13, .1, Math.PI - .1); ctx.stroke();
   }
 
   function drawEnemyHealth(e) {
     const boss = isBossType(e.type);
     const width = boss ? 110 : e.radius * 2;
-    const y = e.y - e.radius - 12;
+    const y = e.y - e.radius * 2.55 - 10;
     ctx.fillStyle = "#140f14cc"; ctx.fillRect(e.x - width / 2, y, width, boss ? 7 : 4);
     ctx.fillStyle = boss ? e.color : "#d65b50"; ctx.fillRect(e.x - width / 2, y, width * clamp(e.hp / e.maxHp, 0, 1), boss ? 7 : 4);
   }
@@ -3995,14 +4171,16 @@
   function drawBullets() {
     ctx.save();
     for (const b of game.bullets) {
-      ctx.fillStyle = b.crit ? "#fff47c" : (b.cropColor || "#ffe7a2");
-      ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = b.crit ? 12 : 6;
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, TAU); ctx.fill();
+      ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));
+      const color=b.crit?"#eddaa0":(b.cropColor||"#e0cd8d");
+      ctx.strokeStyle=color;ctx.globalAlpha=.28;ctx.lineWidth=b.radius*1.5;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-b.radius*4,0);ctx.lineTo(0,0);ctx.stroke();ctx.globalAlpha=1;
+      ctx.fillStyle=color;ctx.strokeStyle="#485b3c";ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(0,0,b.radius*1.2,b.radius*.75,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#f4ebcb";ctx.beginPath();ctx.arc(b.radius*.25,-b.radius*.18,Math.max(1,b.radius*.35),0,TAU);ctx.fill();ctx.restore();
     }
     for (const b of game.enemyBullets) {
-      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 9;
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "#f2c5e1"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle="#c78366";ctx.strokeStyle="#f1d5a2";ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.radius+1,0,TAU);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#f0d2a2";ctx.beginPath();ctx.arc(b.x-1,b.y-1,Math.max(1,b.radius*.4),0,TAU);ctx.fill();
     }
     ctx.restore();
   }
@@ -4035,6 +4213,12 @@
       if (chest.opened) continue;
       const bob = Math.sin(chest.pulse * 3) * 3;
       ctx.save(); ctx.translate(chest.x, chest.y + bob);
+      if (propAtlas.complete && propAtlas.naturalWidth) {
+        ctx.fillStyle="#d7c78325";ctx.beginPath();ctx.ellipse(0,14,26,10,0,0,TAU);ctx.fill();
+        drawAtlasSprite(propAtlas,PROP_SPRITES.chest,0,17,54,48);
+        ctx.strokeStyle="#ded79b88";ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,-4,34,-.3+chest.pulse*.3,.8+chest.pulse*.3);ctx.stroke();
+        ctx.restore();continue;
+      }
       ctx.shadowColor = "#ffe06d"; ctx.shadowBlur = 18 + Math.sin(chest.pulse * 5) * 6;
       ctx.fillStyle = "#8b5c49"; ctx.strokeStyle = "#fff0a8"; ctx.lineWidth = 4;
       roundRect(-22, -15, 44, 31, 8); ctx.fill(); ctx.stroke();
@@ -4050,13 +4234,19 @@
       ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = p.color; ctx.fillStyle = p.color;
       if (p.shape === "ring") {
         const progress = 1 - p.life / p.maxLife;
-        ctx.lineWidth = 5 * (1 - progress);
+        ctx.lineWidth = 2.5 * (1 - progress);
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * progress, 0, TAU); ctx.stroke();
-      } else if (p.shape === "slash") { ctx.lineWidth = 12; ctx.lineCap = "round"; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - p.life / p.maxLife * .25), p.angle - p.arc / 2, p.angle + p.arc / 2); ctx.stroke(); }
-      else if (p.shape === "lane") { ctx.globalAlpha *= .45; ctx.fillRect(p.x - p.size / 2, p.y - 55, p.size, 110); }
+        ctx.globalAlpha *= .4; ctx.lineWidth=1; ctx.beginPath();ctx.arc(p.x,p.y,p.size*progress*.88,.25,TAU-.25);ctx.stroke();
+      } else if (p.shape === "slash") {
+        const radius=p.size*(1-p.life/p.maxLife*.25);
+        ctx.lineWidth=10;ctx.lineCap="round";ctx.globalAlpha*=.45;ctx.beginPath();ctx.arc(p.x,p.y,radius,p.angle-p.arc/2,p.angle+p.arc/2);ctx.stroke();
+        ctx.globalAlpha=alpha;ctx.lineWidth=2;ctx.strokeStyle="#f1e7bd";ctx.beginPath();ctx.arc(p.x,p.y,radius-3,p.angle-p.arc/2+.12,p.angle+p.arc/2-.12);ctx.stroke();
+      }
+      else if (p.shape === "lane") { ctx.globalAlpha *= .28;ctx.beginPath();ctx.roundRect(p.x-p.size/2,p.y-42,p.size,84,16);ctx.fill();ctx.globalAlpha*=1.5;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-p.size/2,p.y);ctx.lineTo(p.x+p.size/2,p.y);ctx.stroke(); }
       else if (p.shape === "circle") { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill(); }
-      else if (p.shape === "flash") { ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.vy, p.vx)); ctx.fillRect(0, -p.size / 2, p.size * 1.5, p.size); }
-      else ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      else if(p.shape === "petal") {ctx.translate(p.x,p.y);ctx.rotate((p.angle||0)+(1-p.life/p.maxLife)*2);ctx.beginPath();ctx.ellipse(0,0,p.size*1.2,p.size*.45,0,0,TAU);ctx.fill();ctx.strokeStyle="#f3eccb66";ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(-p.size,0);ctx.lineTo(p.size,0);ctx.stroke();}
+      else if(p.shape === "spark"||p.shape === "flash") {ctx.translate(p.x,p.y);ctx.rotate(p.angle||Math.atan2(p.vy,p.vx));ctx.beginPath();ctx.moveTo(-p.size*1.3,0);ctx.lineTo(0,-p.size*.35);ctx.lineTo(p.size*1.3,0);ctx.lineTo(0,p.size*.35);ctx.closePath();ctx.fill();}
+      else {ctx.translate(p.x,p.y);ctx.rotate((p.angle||0)+p.life*2);ctx.beginPath();ctx.roundRect(-p.size/2,-p.size/2,p.size,p.size,1.5);ctx.fill();}
       ctx.restore();
     }
   }
@@ -4065,8 +4255,8 @@
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const f of game.floaters) {
       ctx.globalAlpha = clamp(f.life / f.maxLife, 0, 1);
-      ctx.font = `900 ${f.size}px "Microsoft YaHei", sans-serif`;
-      ctx.lineWidth = 4; ctx.strokeStyle = "#17131a"; ctx.strokeText(f.text, f.x, f.y);
+      ctx.font = `600 ${f.size}px "Bahnschrift", "Microsoft YaHei UI", sans-serif`;
+      ctx.lineWidth = 2.5; ctx.strokeStyle = "#304532dd"; ctx.strokeText(f.text, f.x, f.y);
       ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
     }
     ctx.globalAlpha = 1;
@@ -4074,7 +4264,7 @@
 
   function drawWorldOverlay() {
     if (game.phase === "night") {
-      ctx.fillStyle = "rgba(18,20,43,.18)";
+      ctx.fillStyle = "rgba(20,38,33,.18)";
       ctx.fillRect(196, 72, W - 196, H - 72);
     }
     const blackout = game.phase === "night" && (hasTerrain("blackout") || (game.boss && game.boss.variant && game.boss.variant.blackout));
@@ -4097,7 +4287,7 @@
       }
       visibilityCtx.globalCompositeOperation = "source-over";
       ctx.drawImage(visibilityCanvas, 0, 0);
-      ctx.fillStyle = "#fff1a8"; ctx.font = "900 9px 'Microsoft YaHei'"; ctx.textAlign = "center"; ctx.fillText("停电区：向日葵可扩大视野", VIEW.x + VIEW.w / 2, VIEW.y + 18);
+      ctx.fillStyle = "#fff1a8"; ctx.font = "600 9px 'Microsoft YaHei UI'"; ctx.textAlign = "center"; ctx.fillText("停电区：向日葵可扩大视野", VIEW.x + VIEW.w / 2, VIEW.y + 18);
     }
     if (game.flash > 0) {
       ctx.fillStyle = `rgba(255,60,55,${game.flash * .18})`;
@@ -4119,10 +4309,10 @@
     if (game.toast.time > 0) {
       const fade = Math.min(1, game.toast.time * 2, (3.2 - game.toast.time) * 2);
       ctx.save(); ctx.globalAlpha = clamp(fade, 0, 1); ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(14,12,17,.78)"; ctx.fillRect(470, 116, 390, 64);
-      ctx.strokeStyle = "#f0d69155"; ctx.strokeRect(470.5, 116.5, 389, 63);
-      ctx.fillStyle = "#fff0ce"; ctx.font = "900 18px 'Microsoft YaHei'"; ctx.fillText(game.toast.text, 665, 141);
-      ctx.fillStyle = "#b8ad9d"; ctx.font = "10px 'Microsoft YaHei'"; ctx.fillText(game.toast.sub, 665, 161);
+      ctx.fillStyle = "#294838ed"; ctx.beginPath();ctx.roundRect(458,105,414,62,4);ctx.fill();
+      ctx.strokeStyle = "#bfbc8299";ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle = "#e3e5c2"; ctx.font = "500 15px 'Microsoft YaHei UI'"; ctx.fillText(game.toast.text, 665, 130);
+      ctx.fillStyle = "#a6b68c"; ctx.font = "9px 'Microsoft YaHei UI'"; ctx.fillText(game.toast.sub, 665, 151,390);
       ctx.restore();
     }
   }
@@ -4135,15 +4325,15 @@
     const sy = VIEW.y + VIEW.h / 2 + game.player.y - game.camera.y;
     ctx.save(); ctx.globalAlpha = clamp(1 - progress, 0, 1);
     if (fx.type === "sprout") {
-      ctx.strokeStyle = "#b89cff"; ctx.lineWidth = 5;
+      ctx.strokeStyle = "#abc485"; ctx.lineWidth = 5;
       for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(sx, sy, 45 + progress * 380 + i * 34, progress * 2 + i, progress * 2 + i + Math.PI * 1.35); ctx.stroke(); }
       ctx.fillStyle = "#83dc83"; for (let i = 0; i < 10; i++) { const a = TAU * i / 10 + progress * 3; ctx.save(); ctx.translate(sx + Math.cos(a) * (55 + progress * 260), sy + Math.sin(a) * (55 + progress * 260)); ctx.rotate(a); ctx.fillRect(-7, -3, 14, 6); ctx.restore(); }
     } else if (fx.type === "beat") {
       ctx.fillStyle = `rgba(255,241,108,${.3 * (1 - progress)})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
-      ctx.strokeStyle = "#fff276"; ctx.lineWidth = 7;
+      ctx.strokeStyle = "#e3cd83"; ctx.lineWidth = 7;
       for (let i = 0; i < 5; i++) { const x = VIEW.x + VIEW.w * (i + .5) / 5; ctx.beginPath(); ctx.moveTo(x, VIEW.y); ctx.lineTo(x + (i % 2 ? -38 : 38), sy - 45); ctx.lineTo(x - 20, sy + 22); ctx.lineTo(x + 30, VIEW.y + VIEW.h); ctx.stroke(); }
     } else {
-      ctx.strokeStyle = "#86ead7"; ctx.lineWidth = 5;
+      ctx.strokeStyle = "#b4ccae"; ctx.lineWidth = 5;
       for (let i = 0; i < 9; i++) { const a = TAU * i / 9; const d = 35 + progress * 240; ctx.beginPath(); ctx.arc(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 12 + progress * 24, 0, TAU); ctx.stroke(); }
     }
     ctx.restore();
@@ -4151,8 +4341,8 @@
 
   function drawMiniMap() {
     const x = W - 135, y = 282, w = 105, h = 66;
-    ctx.save(); ctx.fillStyle = "#fffaf0d9"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#72647f"; ctx.font = "900 7px 'Microsoft YaHei'"; ctx.textAlign = "left"; ctx.fillText("农区雷达", x + 8, y + 11);
+    ctx.save(); ctx.fillStyle = "#e6ead2eb"; ctx.strokeStyle = "#b2c198"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#6f8859"; ctx.font = "500 7px 'Microsoft YaHei UI'"; ctx.textAlign = "left"; ctx.fillText("FIELD RADAR / 农区", x + 8, y + 11);
     for (const zone of FIELD_ZONES) { const center = zonePosition(zone.id); ctx.fillStyle = zone.color; ctx.beginPath(); ctx.arc(x + 7 + center.x / WORLD_W * (w - 14), y + 16 + center.y / WORLD_H * (h - 22), 4, 0, TAU); ctx.fill(); }
     ctx.fillStyle = "#ef668d"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 7 + game.player.x / WORLD_W * (w - 14), y + 16 + game.player.y / WORLD_H * (h - 22), 4.5, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.restore();
@@ -4183,6 +4373,7 @@
 
   window.addEventListener("keydown", (event) => {
     const key = event.key.toLowerCase();
+    if (!$("lab-overlay").classList.contains("hidden")) { if(key==="escape") $("lab-overlay").classList.add("hidden"); return; }
     if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
     if (state === "start" && (key === "enter" || key === " ")) { openStory(); return; }
     if (state === "story" && (key === "enter" || key === " ")) { advanceStory(); return; }
@@ -4254,6 +4445,17 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
+      artAssets: () => ({ companions: companionAtlas.complete && companionAtlas.naturalWidth > 0, enemies: enemyAtlas.complete && enemyAtlas.naturalWidth > 0, crops: cropAtlas.complete && cropAtlas.naturalWidth > 0, props: propAtlas.complete && propAtlas.naturalWidth > 0, scale: $("game-shell").style.getPropertyValue("--ui-scale"), icons: document.querySelectorAll(".ui-icon").length }),
+      artGallery: () => {
+        game.enemies.length=0;game.enemyBullets.length=0;game.hazards.length=0;game.freezeTimer=999;
+        game.toast.time=0;ui.aiSpeech.classList.add("hidden");ui.mission.classList.add("hidden");ui.terrainCard.classList.add("hidden");
+        game.player.x=1190;game.player.y=790;game.camera.x=1190;game.camera.y=740;
+        const types=Object.keys(ENEMY_SPRITES).filter((id)=>!isBossType(id));
+        types.forEach((type,i)=>{const e=createEnemy(type,875+i*77,600);e.facing=0;game.enemies.push(e);});
+        CROP_TYPES.forEach((crop,i)=>{const p=game.plots[i];p.x=p.baseX=875+i*77;p.y=p.baseY=720;p.crop=i;p.state="ready";p.growth=crop.grow;});
+        COMBO_PLANTS.forEach((combo,i)=>{const p=game.plots[8+i];p.x=p.baseX=1010+i*100;p.y=p.baseY=870;p.crop=combo.pair[0];p.state="ready";p.growth=CROP_TYPES[p.crop].grow;p.comboPlant=combo.id;});
+        return true;
+      },
       snapshot: () => game ? ({ day: game.day, wave: game.wave, totalWaves: TOTAL_WAVES, waveDuration: currentDuration(), rewardWave: isRewardWave(), phase: game.phase, phaseTime: game.phaseTime, character: game.character, weapon: game.weapon, weaponMastery: game.weaponMastery, unlockedSeeds: [...game.unlockedSeeds], seedUnlockOffer: game.seedUnlockOffer, buildPage: game.buildPage, selectedSeed: game.selectedSeed, selectedTool: game.selectedTool, activeTools: { ...game.activeTools }, skill: CHARACTERS[game.character].skill, skillCooldown: game.player.skillCooldown, level: game.player.level, pendingChoice: game.pendingChoice, damage: game.player.damage, armor: game.player.armor, speed: game.player.speed, dodge: game.player.dodge, crit: game.player.crit, hp: game.player.hp, maxHp: game.player.maxHp, water: game.water, seeds: [...game.seeds], biomass: game.coins, terrain: activeTerrainIds(), mapVariant: MAP_VARIANTS[game.mapVariant].name, plots: game.plots.length, growingPlots: game.plots.filter((plot) => plot.state === "growing").length, dryPlots: game.plots.filter((plot) => plot.state === "growing" && plot.wet <= 2).length, hybrids: game.hybridCount, comboPlants: game.comboPlantCount, comboCards: Object.keys(game.comboCards), comboHarvestStacks: { ...game.comboHarvestStacks }, hybridStatStacks: { ...game.hybridStatStacks }, harvestMomentum: game.harvestMomentum, cropMultiplier: combatCropMultiplier(game.player.attackMode === "melee"), elites: game.enemies.filter((enemy) => enemy.affix).map((enemy) => enemy.affix), enemyCount: game.enemies.length, boss: game.boss ? { type: game.boss.type, variant: game.boss.variant.id, hp: game.boss.hp, maxHp: game.boss.maxHp, stage: game.boss.enrageStage } : null, hazards: game.hazards.length, pickupCount: game.pickups.length, pickupValue: game.pickups.reduce((sum, item) => sum + item.value, 0), shield: game.player.shield, shieldFlash: game.shieldFlash, activeEvent: game.activeEvent, nextEventIn: game.eventTimer, merchantRefreshes: game.merchantRefreshes, merchantRefreshCost: 2 + game.merchantRefreshes * 2, merchantStock: [...game.merchantStock], statTalents: { ...game.statTalents }, attackMode: game.player.attackMode, stationary: game.player.stationaryCharge, chests: game.chests.filter((chest) => !chest.opened).length, relics: Object.keys(game.relics), bullets: game.bullets.slice(-6).map((b) => ({ weapon: b.weapon, overcharged: Boolean(b.overcharged), isSprout: Boolean(b.isSprout), splash: b.splash || 0, frost: b.frost || 0, homing: b.homing, pierce: b.pierce })) }) : null,
       readyCrop: (index, plotIndex = 0) => { const plot = game.plots[plotIndex] || game.plots[0]; plot.crop = index; plot.state = "ready"; plot.growth = CROP_TYPES[index].grow; game.player.x = plot.x; game.player.y = plot.y + 100; },
       breakShield: () => { game.player.shield = 8; game.player.hurtCooldown = 0; hurtPlayer(12, game.player.x - 30, game.player.y); },
@@ -4302,6 +4504,20 @@
     };
   }
 
+  function initializeArtInterface() {
+    const shell = $("game-shell");
+    const fit = () => shell.style.setProperty("--ui-scale", shell.clientWidth / W);
+    new ResizeObserver(fit).observe(shell);
+    fit();
+    document.querySelectorAll("[data-ui-icon]").forEach((node) => { node.innerHTML = uiIcon(node.dataset.uiIcon); });
+    document.querySelectorAll(".seed-card").forEach((node) => { node.querySelector(".seed-glyph").innerHTML = uiIcon(CROP_TYPES[Number(node.dataset.seed)].id); });
+    document.querySelectorAll(".weapon-card").forEach((node) => node.insertAdjacentHTML("afterbegin", uiIcon(node.dataset.weapon)));
+    document.querySelectorAll("[data-meta]").forEach((node) => { node.querySelector("i").innerHTML = uiIcon(node.dataset.meta); });
+    $("lab-btn").addEventListener("click", () => $("lab-overlay").classList.remove("hidden"));
+    $("lab-close").addEventListener("click", () => $("lab-overlay").classList.add("hidden"));
+    $("lab-overlay").addEventListener("click", (event) => { if (event.target === $("lab-overlay")) $("lab-overlay").classList.add("hidden"); });
+  }
+  initializeArtInterface();
   renderCharacterDetail();
   updateMetaDisplay();
   requestAnimationFrame(frame);
