@@ -34,7 +34,7 @@ async function shot(name) {
 await call("Runtime.enable"); await call("Log.enable"); await call("Page.enable");
 await call("Emulation.setDeviceMetricsOverride", { width:1280, height:720, deviceScaleFactor:1, mobile:false });
 await call("Page.navigate", { url }); await wait(2500);
-const initial = await evaluate("({version:document.querySelector('.version').textContent,atlas:window.__wildrootDebug?.artAssets(),hero:getComputedStyle(document.querySelector('.companion-art')).backgroundImage.startsWith('url('),startVisible:!document.querySelector('#start-screen').classList.contains('hidden')})");
+const initial = await evaluate("({version:document.querySelector('.version').textContent,atlas:window.__wildrootDebug?.artAssets(),hero:[...document.querySelector('.companion-art').getContext('2d').getImageData(0,0,512,1024).data].some((value,index)=>index%4===3&&value>0),startVisible:!document.querySelector('#start-screen').classList.contains('hidden')})");
 await shot("01-menu");
 await evaluate("document.querySelector('[data-character=beat]').click()"); await shot("02-beat");
 await evaluate("document.querySelector('#lab-btn').click()");

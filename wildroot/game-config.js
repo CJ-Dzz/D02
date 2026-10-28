@@ -66,6 +66,14 @@ window.WILDROOT_CONFIG = {
     hybridPityStep: 0.10,
     hybridPityCap: 0.40
   },
+  merchant: {
+    stockSize: 4
+  },
+  exploration: {
+    slotChance: 0.72,
+    maxPerDay: 4,
+    weights: { rain: 1.3, composter: 1.1, seedcache: 1, memory: 0.7, workbench: 0.95, pollen: 0.8 }
+  },
   interface: {
     pluginPageSize: 8
   }

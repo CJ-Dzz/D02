@@ -26,9 +26,11 @@
   const DROP_CONFIG = Object.assign({ mergeRadius: 82, xpValueMultiplier: 1.18, waterChance: .12, biomassChance: .30, waterValue: 2, biomassValue: 2 }, CONFIG.drops || {});
   const BREEDING_CONFIG = Object.assign({ mutationBaseChance: .04, mutationPerDiversity: .045, ruinMutationBonus: .11, hybridBaseChance: .30, hybridMutationBonus: .10, hybridChanceCap: .88, hybridPityStep: .10, hybridPityCap: .40 }, CONFIG.breeding || {});
   const INTERFACE_CONFIG = Object.assign({ pluginPageSize: 8 }, CONFIG.interface || {});
+  const MERCHANT_CONFIG = Object.assign({ stockSize: 4 }, CONFIG.merchant || {});
+  const EXPLORATION_CONFIG = Object.assign({ slotChance: .72, maxPerDay: 4, weights: {} }, CONFIG.exploration || {});
   const ART = { ink: "#344b39", paper: "#efecd5", jade: "#8ca779", gold: "#d7b969", coral: "#ca7c65", blue: "#86ada7", plum: "#938c9b" };
   const companionAtlas = new Image();
-  companionAtlas.src = window.WILDROOT_COMPANION_ATLAS || "assets/companions-v66.png";
+  companionAtlas.src = window.WILDROOT_COMPANION_ATLAS || "assets/companions-v67.png";
   const enemyAtlas = new Image();
   enemyAtlas.src = window.WILDROOT_ENEMY_ATLAS || "assets/enemies-v66.png";
   const cropAtlas = new Image();
@@ -90,7 +92,15 @@
     chip: '<rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4M9 9h6v6H9Z"/>',
     boss: '<path d="M4 7 2 3l7 3 3-4 3 4 7-3-2 4M5 8h14v9l-7 5-7-5Z"/><path d="m7 11 3 2M17 11l-3 2M10 17h4"/>',
     bag: '<path d="M8 7 5 2h14l-3 5M7 7h10c7 11 5 15-5 15S0 18 7 7ZM12 10v8M9 14h6"/>',
-    plant: '<path d="M12 21V9M12 14C4 14 3 9 3 6c7-1 10 3 9 8ZM12 10C12 3 17 2 22 3c0 6-5 8-10 7M6 21h12"/>'
+    plant: '<path d="M12 21V9M12 14C4 14 3 9 3 6c7-1 10 3 9 8ZM12 10C12 3 17 2 22 3c0 6-5 8-10 7M6 21h12"/>',
+    canteen: '<rect x="5" y="6" width="14" height="16" rx="4"/><path d="M9 2h6v4M5 12h14M9 16h6M12 13v6"/>',
+    rations: '<path d="M4 4h16l-2 4 2 14H4L6 8ZM6 9h12M9 13h6M8 17h8"/>',
+    nectar: '<path d="M9 2h6v5l5 9c2 5-2 6-8 6s-10-1-8-6l5-9ZM7 14h10M9 5h6M9 18h1M14 16h1"/>',
+    compass: '<circle cx="12" cy="13" r="9"/><path d="m8 17 3-7 5-1-3 7ZM12 1v3M4 5l2 2M18 5l2-2"/>',
+    workbench: '<path d="M2 11h20M5 11v11M19 11v11M7 17h10M8 10V5h8v5M10 2v3M14 2v3"/>',
+    terminal: '<rect x="3" y="3" width="18" height="14" rx="2"/><path d="m7 7 3 3-3 3M13 13h4M12 17v4M7 21h10"/>',
+    pollen: '<circle cx="12" cy="12" r="3"/><path d="M12 9C4 0 1 10 9 12 0 20 10 23 12 15c8 9 11-1 3-3 9-8-1-11-3-3ZM12 15v7"/>',
+    compost: '<path d="M5 8h14l-2 14H7ZM3 8h18M8 8V4h8v4M9 13l3-2 3 2-1 4h-4Z"/>'
   };
   function uiIcon(id) {
     const aliases = { growth: "water", armor: "shield", plating: "shield", carapace: "shield", cloak: "shield", stride: "boots", evasion: "scope", overdrive: "spark", trigger: "rifle", power: "spark", fertilizer: "plant", fieldkit: "heart", coolant: "mint", seedbag: "bag", sprout: "plant", beat: "spark", mochi: "shield", peacannon: "thorn", solarforge: "sun", cryoforge: "mint", corncannon: "corn", drone: "chip", compute: "chip", soil: "plant", backup: "heart", radar: "scope", memory: "chip", bond: "heart" };
@@ -293,7 +303,16 @@
     { id: "fertilizer", icon: "♣", color: "#75bf71", name: "慢释星尘肥", cost: 10, copy: "作物生长 +5%，收获收益 +7%。", apply: () => { game.cropGrowth *= 1.05; game.cropYield *= 1.07; } },
     { id: "coolant", icon: "❄", color: "#7dcfe8", name: "低温冷却液", cost: 12, copy: "冲刺冷却 -8%，AI 技能冷却 -6%。", apply: () => { game.player.dashMax *= .92; game.player.skillMax *= .94; } },
     { id: "seedbag", icon: "✿", color: "#e3b864", name: "拼装种子袋", cost: 8, copy: "当前已解锁的每类种子 +1。", apply: () => { for (const index of game.unlockedSeeds) game.seeds[index] += 1; } },
-    { id: "fieldkit", icon: "✚", color: "#85c98c", name: "田地修补箱", cost: 9, copy: "全部田块恢复满耐久，作物抗击打 +8%。", apply: () => { game.cropArmor *= 1.08; for (const plot of game.plots) plot.hp = plot.maxHp; } }
+    { id: "fieldkit", icon: "✚", color: "#85c98c", name: "田地修补箱", cost: 9, copy: "全部田块恢复满耐久，作物抗击打 +8%。", apply: () => { game.cropArmor *= 1.08; for (const plot of game.plots) plot.hp = plot.maxHp; } },
+    { id: "canteen", daily: true, category: "补给", color: "#83b7ae", name: "回收雨水罐", cost: 6, copy: "灌溉水 +3。每日限购一罐。", apply: () => { game.water += 3; } },
+    { id: "rations", daily: true, category: "补给", color: "#d6ad73", name: "避难所便当", cost: 8, copy: "恢复 22 生命。每日限购一份。", apply: () => { game.player.hp = Math.min(game.player.maxHp, game.player.hp + 22); } },
+    { id: "seedparcel", daily: true, category: "农务", color: "#94b17f", name: "盲盒种子包", cost: 7, copy: "随机一种已解锁作物的种子 +3。每日限购一次。", apply: () => { const index = game.unlockedSeeds[Math.floor(Math.random() * game.unlockedSeeds.length)]; game.seeds[index] += 3; return `${CROP_TYPES[index].name}种子 +3，已放入快捷栏`; } },
+    { id: "nectar", category: "农务", color: "#c49aaf", name: "嫁接花蜜", cost: 11, copy: "下次杂交保底概率 +16%，保底总值上限 40%；成功后清零。", apply: () => { game.hybridPity = Math.min(BREEDING_CONFIG.hybridPityCap, game.hybridPity + .16); } },
+    { id: "compost", category: "农务", color: "#9d9970", name: "菌床堆肥芯", cost: 13, copy: "作物生长 +4%，收获收益 +3%。", apply: () => { game.cropGrowth *= 1.04; game.cropYield *= 1.03; } },
+    { id: "waterseal", category: "农务", color: "#86aba3", name: "保水种壳", cost: 10, copy: "播种与手动浇水获得额外 2 点湿度。", apply: () => { game.waterReserve += 2; } },
+    { id: "harvestward", category: "农务", color: "#b6ab73", name: "六穗丰收护符", cost: 12, copy: "接下来 6 次收获：护盾 +4、生物质 +1。收获后才生效。", apply: () => { game.harvestWardCharges += 6; } },
+    { id: "compass", category: "探索", color: "#aeab7c", name: "旧世勘探罗盘", cost: 9, copy: "拾取范围 +18，野外设施互动距离 +18。", apply: () => { game.player.magnet += 18; game.interactionReach += 18; } },
+    { id: "grip", category: "武装", color: "#a78d71", name: "纤维稳压握把", cost: 15, copy: "远程与近战基础攻击间隔 -3%。", apply: () => { game.player.fireRate *= .97; game.player.meleeRate *= .97; } }
   ];
 
   const ENEMY_DATA = {
@@ -423,9 +442,15 @@
       upgradeCounts: {},
       statTalents: {},
       merchantOwned: {},
+      merchantDailyOwned: {},
       merchantStock: [],
       seedUnlockOffer: null,
       merchantRefreshes: 0,
+      worldInteractables: [],
+      interactionReach: 0,
+      pollenCharges: 0,
+      harvestWardCharges: 0,
+      waterReserve: 0,
       items: {},
       fusions: {},
       fusionCount: 0,
@@ -474,6 +499,7 @@
       harvestShieldLevel: 0,
       meleeHarvestRate: 0,
       weaponShotCount: 0,
+      weaponFx: { time: 0, duration: .22 },
       weaponMastery: 0,
       aiSpeechTime: 0,
       missionTime: 7,
@@ -557,6 +583,8 @@
     input.skill = false;
     selectSeed(startingIds[0]);
     rollMerchantStock(true);
+    generateWorldInteractables();
+    renderCompanionPortraits();
     updateLoadoutAvailability();
     updateTerrainUi();
     renderRestShop();
@@ -689,8 +717,10 @@
   }
 
   function beginWave(wave) {
+    const previousDay = game.day;
     game.wave = wave;
     game.day = Math.floor((wave - 1) / 3) + 1;
+    if (game.day !== previousDay) generateWorldInteractables();
     game.phase = wave % 3 === 0 ? "night" : "day";
     game.phaseTime = 0;
     game.spawnTimer = .65;
@@ -813,12 +843,12 @@
 
   function rollMerchantStock(guaranteeShovel = false) {
     if (!game) return;
-    const available = MERCHANT_ITEMS.filter((item) => !game.merchantOwned[item.id]);
+    const available = MERCHANT_ITEMS.filter((item) => !merchantSoldOut(item));
     const stock = [];
     const shovel = available.find((item) => item.id === "shovel");
     if (guaranteeShovel && shovel) stock.push(shovel.id);
     const pool = available.filter((item) => !stock.includes(item.id));
-    while (stock.length < Math.min(3, available.length) && pool.length) {
+    while (stock.length < Math.min(clamp(Math.floor(MERCHANT_CONFIG.stockSize), 1, 6), available.length) && pool.length) {
       const index = Math.floor(Math.random() * pool.length);
       stock.push(pool.splice(index, 1)[0].id);
     }
@@ -832,11 +862,11 @@
     for (const id of game.merchantStock) {
       const item = MERCHANT_ITEMS.find((entry) => entry.id === id);
       if (!item) continue;
-      const owned = Boolean(game.merchantOwned[id]);
+      const owned = merchantSoldOut(item);
       const button = document.createElement("button");
       button.className = `merchant-card item-${item.id}`;
       button.style.setProperty("--item-color", item.color || "#d39d68");
-      button.innerHTML = `<span class="merchant-art" aria-hidden="true"><i>${uiIcon(item.id)}</i><u></u><u></u></span><span class="merchant-copy"><b>${item.name}</b><small>${item.copy}</small><em>${owned ? "已售罄" : `◆${item.cost}`}</em></span>`;
+      button.innerHTML = `<span class="merchant-art" aria-hidden="true"><i>${uiIcon(({ seedparcel: "bag", waterseal: "water", harvestward: "pollen", grip: "rifle" })[item.id] || item.id)}</i></span><span class="merchant-copy"><b>${item.name}</b><small>${item.copy}</small><em>${owned ? (item.daily ? "今日售罄" : "已售罄") : `◆${item.cost}`}<span>${item.category || (["fertilizer", "fieldkit", "seedbag", "shovel"].includes(item.id) ? "农务" : "武装")}</span></em></span>`;
       button.disabled = owned || game.coins < item.cost || game.phase !== "rest";
       button.addEventListener("click", () => buyMerchantItem(id));
       ui.merchantItems.appendChild(button);
@@ -845,7 +875,11 @@
     const refreshCost = 2 + game.merchantRefreshes * 2;
     ui.merchantRefresh.textContent = `刷新 ◆${refreshCost}`;
     const allSeedsUnlocked = game.unlockedSeeds.length >= CROP_TYPES.length;
-    ui.merchantRefresh.disabled = game.phase !== "rest" || game.coins < refreshCost || (MERCHANT_ITEMS.every((item) => game.merchantOwned[item.id]) && allSeedsUnlocked);
+    ui.merchantRefresh.disabled = game.phase !== "rest" || game.coins < refreshCost || (MERCHANT_ITEMS.every(merchantSoldOut) && allSeedsUnlocked);
+  }
+
+  function merchantSoldOut(item) {
+    return item.daily ? game.merchantDailyOwned[item.id] === game.day : Boolean(game.merchantOwned[item.id]);
   }
 
   function refreshMerchant() {
@@ -862,12 +896,13 @@
 
   function buyMerchantItem(id) {
     const item = MERCHANT_ITEMS.find((entry) => entry.id === id);
-    if (!game || !item || game.phase !== "rest" || game.merchantOwned[id] || game.coins < item.cost) return;
+    if (!game || !item || game.phase !== "rest" || !game.merchantStock.includes(id) || merchantSoldOut(item) || game.coins < item.cost) return;
     game.coins -= item.cost;
     game.merchantOwned[id] = true;
-    item.apply();
+    if (item.daily) game.merchantDailyOwned[id] = game.day;
+    const receipt = item.apply();
     game.upgrades.push(`商店：${item.name}`);
-    showToast(`购入 · ${item.name}`, item.copy);
+    showToast(`购入 · ${item.name}`, receipt || item.copy);
     renderRestShop();
     renderBuildDock();
     updateHud();
@@ -1288,6 +1323,7 @@
     game.shake = Math.max(0, game.shake - dt * 3.5);
     game.flash = Math.max(0, game.flash - dt * 4);
     game.shieldFlash = Math.max(0, game.shieldFlash - dt * 3.2);
+    game.weaponFx.time = Math.max(0, game.weaponFx.time - dt);
     game.threatPulse = Math.max(0, game.threatPulse - dt);
     if (game.toast.time > 0) game.toast.time -= dt;
     if (game.missionTime > 0) {
@@ -1650,6 +1686,8 @@
   function shootPlayer() {
     const p = game.player;
     const weapon = WEAPONS[game.weapon];
+    game.weaponFx.duration = weapon.melee ? Math.min(.34, p.meleeRate * .85) : game.weapon === "shotgun" ? .42 : .23;
+    game.weaponFx.time = game.weaponFx.duration;
     const auras = activeCropAuras();
     const hybrids = activeHybrids();
     const auraBoost = activeMutationBoost();
@@ -2435,6 +2473,116 @@
     return bestDist < 61 ? best : null;
   }
 
+  const WORLD_INTERACTIONS = [
+    { id: "rain", name: "雨水收集桶", icon: "water", color: "#91bcb1", cost: 0, weight: 1.3, copy: "收集灌溉水 +2" },
+    { id: "composter", name: "堆肥交换机", icon: "compost", color: "#a0b17b", cost: 0, weight: 1.1, copy: "消耗 1 水，换取 4 生物质" },
+    { id: "seedcache", name: "田间种子柜", icon: "bag", color: "#d0bc81", cost: 5, weight: 1, copy: "指定种子 +3，灌溉水 +1" },
+    { id: "memory", name: "旧世记忆终端", icon: "terminal", color: "#a8adba", cost: 3, weight: .7, copy: "芽晶 +1，并读取旅伴记忆" },
+    { id: "workbench", name: "废弃工作台", icon: "workbench", color: "#bd9d78", cost: 4, weight: .95, copy: "铲子耐久 +2，上限 5；无铲可组装" },
+    { id: "pollen", name: "授粉风铃", icon: "pollen", color: "#d1bb7e", cost: 3, weight: .8, copy: "未来 3 次收获：生物质 +1、超频 +2" }
+  ];
+  const interactionIcons = new Map();
+  function generateWorldInteractables() {
+    const anchors = [[890,890],[1450,670],[930,530],[760,1120],[1930,820],[2040,1110],[520,760],[900,210],[2060,330],[330,1060]];
+    // Fisher–Yates 保持位置等概率，避开中央河床、所有原生田、移动温室轨道及泵站。
+    for (let i=anchors.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [anchors[i],anchors[j]]=[anchors[j],anchors[i]]; }
+    const pool = WORLD_INTERACTIONS.filter((type) => Number(EXPLORATION_CONFIG.weights[type.id] ?? type.weight) > 0).slice();
+    game.worldInteractables = [];
+    const limit=clamp(Math.floor(EXPLORATION_CONFIG.maxPerDay),0,6);
+    for(const [x,y] of anchors.slice(0,5)) {
+      if(game.worldInteractables.length>=limit||!pool.length)break;
+      if(!chance(clamp(EXPLORATION_CONFIG.slotChance,0,1)))continue;
+      if(game.plots.some((plot)=>Math.hypot(plot.x-x,plot.y-y)<155))continue;
+      const total=pool.reduce((sum,type)=>sum+Number(EXPLORATION_CONFIG.weights[type.id]??type.weight),0);
+      let roll=Math.random()*total, index=pool.length-1;
+      for(let i=0;i<pool.length;i++){roll-=Number(EXPLORATION_CONFIG.weights[pool[i].id]??pool[i].weight);if(roll<=0){index=i;break;}}
+      const type=pool.splice(index,1)[0];
+      game.worldInteractables.push({ id:type.id, x, y, used:false, day:game.day, seed:game.unlockedSeeds[Math.floor(Math.random()*game.unlockedSeeds.length)] });
+    }
+  }
+
+  function nearestWorldInteraction() {
+    return game.worldInteractables.filter((node)=>!node.used&&dist(node,game.player)<70+game.interactionReach).sort((a,b)=>dist(a,game.player)-dist(b,game.player))[0]||null;
+  }
+
+  function useWorldInteraction(node) {
+    if(!node||node.used||node.day!==game.day||!game.worldInteractables.includes(node)||dist(node,game.player)>=70+game.interactionReach)return false;
+    const type=WORLD_INTERACTIONS.find((entry)=>entry.id===node.id);
+    if(!type)return false;
+    if(game.coins<type.cost){showToast("生物质不足",`${type.name}需要 ◆${type.cost}`);return false;}
+    if(node.id==="composter"&&game.water<1){showToast("没有可交换的水","需要灌溉水 ×1；设施会保留");return false;}
+    if(node.id==="workbench"&&(game.activeTools.shovel||0)>=5){showToast("铲子已经完好","当前耐久 5 / 5；工作台会保留");return false;}
+    game.coins-=type.cost;
+    node.used=true;
+    let result=type.copy;
+    if(node.id==="rain")game.water+=2;
+    else if(node.id==="composter"){game.water--;game.coins+=4;}
+    else if(node.id==="seedcache"){game.seeds[node.seed]+=3;game.water++;result=`${CROP_TYPES[node.seed].name}种子 +3，灌溉水 +1`;}
+    else if(node.id==="memory"){
+      meta.crystals=(meta.crystals||0)+1;storage.save(meta);updateMetaDisplay();
+      const memories={sprout:"档案里说，种子曾经比电池便宜。真想和你一起看看那样的春天。",beat:"旧世界的音乐还在！等收完这茬，我给你打个丰收节拍。",mochi:"这是一张一家人吃晚饭的照片。今晚……我们也好好吃饭吧。"};
+      aiSay(memories[game.character],7);
+    } else if(node.id==="workbench"){
+      game.activeTools.shovel=Math.min(5,(game.activeTools.shovel||0)+2);
+      updateActiveToolUi();result=`折叠开荒铲耐久 ${game.activeTools.shovel} / 5；滚轮切换后按 E 开垦`;
+    } else if(node.id==="pollen")game.pollenCharges+=3;
+    showToast(type.name,result);burst(node.x,node.y,type.color,14,100);ringEffect(node.x,node.y,type.color,70);
+    renderRestShop();renderBuildDock();updateHud();sound.pickup();
+    return true;
+  }
+
+  function applyHarvestSupplies(plot) {
+    const hadSupplies = game.pollenCharges > 0 || game.harvestWardCharges > 0;
+    if(game.pollenCharges>0){game.pollenCharges--;game.coins++;addOverclock(2);floatText(plot.x,plot.y-75,`授粉回报 · 余 ${game.pollenCharges}`,ART.gold,10);}
+    if(game.harvestWardCharges>0){game.harvestWardCharges--;game.coins++;game.player.shield=Math.min(70,game.player.shield+4);floatText(plot.x,plot.y-88,`丰收护符 · 余 ${game.harvestWardCharges}`,ART.jade,10);}
+    if (hadSupplies) renderBuildDock();
+  }
+
+  function drawWorldInteractables() {
+    game.lastRenderedInteractables = [];
+    for(const node of game.worldInteractables){
+      const type=WORLD_INTERACTIONS.find((entry)=>entry.id===node.id), near=dist(node,game.player)<70+game.interactionReach;
+      if(Math.abs(node.x-game.camera.x)>VIEW.w/2+90||Math.abs(node.y-game.camera.y)>VIEW.h/2+100)continue;
+      game.lastRenderedInteractables.push(node.id);
+      ctx.save();ctx.translate(node.x,node.y);ctx.globalAlpha=node.used?.48:1;
+      ctx.fillStyle="#30473035";ctx.beginPath();ctx.ellipse(0,17,30,11,0,0,TAU);ctx.fill();
+      ctx.strokeStyle=near&&!node.used?"#f1d48d":"#d7dfbb66";ctx.lineWidth=near?2:1;
+      ctx.setLineDash([4,5]);ctx.beginPath();ctx.ellipse(0,19,37,18,0,0,TAU);ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle=ART.ink;ctx.lineWidth=1.5;ctx.fillStyle="#647a5a";
+      if(node.id==="rain"||node.id==="composter"){
+        ctx.fillStyle=node.id==="rain"?"#739d92":"#889667";ctx.beginPath();ctx.roundRect(-20,-29,40,46,7);ctx.fill();ctx.stroke();
+        ctx.fillStyle=type.color;ctx.beginPath();ctx.ellipse(0,-27,20,6,0,0,TAU);ctx.fill();ctx.stroke();
+        ctx.strokeStyle="#d5dbc0";ctx.lineWidth=3;for(const y of [-18,9]){ctx.beginPath();ctx.moveTo(-19,y);ctx.lineTo(19,y);ctx.stroke();}
+        if(node.id==="rain"){ctx.strokeStyle=ART.ink;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(17,3);ctx.lineTo(28,3);ctx.lineTo(28,10);ctx.stroke();}
+      }else if(node.id==="workbench"){
+        ctx.fillStyle="#706a4b";ctx.fillRect(-21,-2,5,23);ctx.fillRect(16,-2,5,23);
+        ctx.fillStyle="#aa8d60";ctx.beginPath();ctx.roundRect(-29,-16,58,13,3);ctx.fill();ctx.stroke();
+        ctx.fillStyle="#e4d2a0";ctx.fillRect(-25,-15,50,3);ctx.fillStyle="#5c7265";ctx.fillRect(-9,-27,20,12);ctx.strokeRect(-9,-27,20,12);
+      }else if(node.id==="pollen"){
+        ctx.strokeStyle="#685c42";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(0,18);ctx.lineTo(0,-28);ctx.stroke();
+        ctx.save();ctx.translate(0,-27);ctx.rotate(Math.sin(game.elapsed*.9)*.22);ctx.fillStyle=type.color;
+        for(let i=0;i<5;i++){ctx.rotate(TAU/5);ctx.beginPath();ctx.ellipse(10,0,11,5,0,0,TAU);ctx.fill();}
+        ctx.fillStyle="#f2e8bd";ctx.beginPath();ctx.arc(0,0,8,0,TAU);ctx.fill();ctx.restore();
+        ctx.strokeStyle="#dcc38a";ctx.lineWidth=1;for(const x of [-14,13]){ctx.beginPath();ctx.moveTo(x,-15);ctx.lineTo(x,4+Math.sin(game.elapsed*2+x)*2);ctx.stroke();ctx.fillStyle=ART.gold;ctx.fillRect(x-3,1,6,8);}
+      }else{
+        ctx.fillStyle="#576c54";ctx.beginPath();ctx.roundRect(-24,-35,48,51,4);ctx.fill();ctx.stroke();
+        ctx.fillStyle=type.color;ctx.beginPath();ctx.roundRect(-20,-32,40,38,3);ctx.fill();ctx.stroke();
+        ctx.fillStyle=node.id==="memory"?"#294d42":"#ebe1b9";ctx.fillRect(-15,-27,30,26);
+        ctx.fillStyle="#c6d6ac";ctx.fillRect(-18,9,24,3);ctx.fillStyle=ART.gold;ctx.beginPath();ctx.arc(17,10,2,0,TAU);ctx.fill();
+        if(node.id==="memory"){ctx.strokeStyle="#dfc886";ctx.beginPath();ctx.moveTo(12,-35);ctx.lineTo(18,-48);ctx.stroke();ctx.fillStyle=ART.gold;ctx.beginPath();ctx.arc(18,-48,3,0,TAU);ctx.fill();}
+      }
+      if(!interactionIcons.has(type.id)){
+        const icon=new Image();icon.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(uiIcon(type.icon).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="#e9e3ba" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '));interactionIcons.set(type.id,icon);
+      }
+      const icon=interactionIcons.get(type.id);if(icon.complete&&icon.naturalWidth)ctx.drawImage(icon,-11,node.id==="pollen"?-38:-25,22,22);
+      ctx.globalAlpha=1;ctx.font="500 9px 'Microsoft YaHei UI'";ctx.textAlign="center";
+      const name=node.used?`${type.name} · 已使用`:type.name;
+      const width=ctx.measureText(name).width+14;ctx.fillStyle=node.used?"#435943b8":"#304c3ae8";ctx.beginPath();ctx.roundRect(-width/2,27,width,17,3);ctx.fill();ctx.fillStyle="#e8e8ca";ctx.fillText(name,0,39);
+      if(!node.used){ctx.font="500 8px 'Microsoft YaHei UI'";ctx.fillStyle=near?"#ffedb1":"#e7e4bc";ctx.fillText(near?"E · "+(type.cost?`◆${type.cost}`:node.id==="composter"?"水 ×1":"免费"):"◇ 可互动",0,55);}
+      ctx.restore();
+    }
+  }
+
   function nearestChest() {
     return game.chests.filter((chest) => !chest.opened && dist(game.player, chest) < 74).sort((a, b) => dist(game.player, a) - dist(game.player, b))[0] || null;
   }
@@ -2452,6 +2600,14 @@
       return;
     }
     const plot = nearestPlot();
+    const node = nearestWorldInteraction();
+    if(node&&(!plot||dist(node,game.player)<dist(plot,game.player))){
+      const type=WORLD_INTERACTIONS.find((entry)=>entry.id===node.id);
+      const details=node.id==="seedcache"?`${CROP_TYPES[node.seed].name}种子 +3、水 +1`:type.copy;
+      ui.context.querySelector("span").textContent=`${type.name} · ${details}${type.cost?` / ◆${type.cost}`:""}`;
+      ui.context.classList.remove("hidden");
+      if(input.interact){input.interact=false;useWorldInteraction(node);}return;
+    }
     if (!plot) {
       if (game.selectedTool === "shovel" && (game.activeTools.shovel || 0) > 0) {
         ui.context.querySelector("span").textContent = `在当前位置开垦新田 · 耐久 ${game.activeTools.shovel}`;
@@ -2482,7 +2638,7 @@
     } else if (plot.wet <= 2) {
       if (game.water <= 0) { floatText(plot.x, plot.y - 25, "没有水", "#ff9b79", 12); return; }
       game.water--;
-      plot.wet = 10;
+      plot.wet = 10 + game.waterReserve;
       burst(plot.x, plot.y, "#65c8dc", 8, 60);
       floatText(plot.x, plot.y - 24, "湿润", "#87ddec", 11);
       sound.water();
@@ -2494,7 +2650,7 @@
     plot.crop = seedIndex;
     plot.state = "growing";
     plot.growth = 0;
-    plot.wet = 8;
+    plot.wet = 8 + game.waterReserve;
     plot.hp = plot.maxHp;
     plot.comboPlant = null;
     game.seeds[seedIndex]--;
@@ -2520,6 +2676,7 @@
     }
     game.crops++;
     game.score += 110;
+    applyHarvestSupplies(plot);
     game.coins += 6;
     grantHarvestMomentum(2);
     addOverclock(20);
@@ -2556,6 +2713,7 @@
     const crop = CROP_TYPES[type];
     game.crops++;
     const harvestScale = plot.yieldMod * (plot.mutation ? 2 : 1);
+    applyHarvestSupplies(plot);
     const effectYield = game.cropYield * harvestScale;
     const earlyYield = clamp(.58 + (game.day - 1) * .105, .58, 1);
     const scoreGain = Math.round(20 * game.cropYield * harvestScale * earlyYield);
@@ -3004,12 +3162,13 @@
     const relics = RELICS.filter((relic) => game.relics[relic.id]);
     const comboCards = COMBO_PLANTS.filter((combo) => game.comboCards[combo.id]);
     const statTalents = STAT_TALENTS.filter((item) => game.statTalents[item.id]);
-    const merchantItems = MERCHANT_ITEMS.filter((item) => game.merchantOwned[item.id] && item.id !== "shovel");
+    const merchantItems = MERCHANT_ITEMS.filter((item) => game.merchantOwned[item.id] && !item.daily && item.id !== "shovel");
     const weaponIcon = game.weapon === "scythe" ? "☾" : game.weapon === "wand" ? "✧" : game.weapon === "rail" ? "━" : game.weapon === "shotgun" ? "≋" : "▸";
     const entries = [
       `<span class="build-item fused" title="主武器：${WEAPONS[game.weapon].name}" style="--item-color:#df7898">${weaponIcon}<b>W</b></span>`,
+      ...(game.pollenCharges > 0 ? [`<span class="build-item" title="授粉风铃：剩余 ${game.pollenCharges} 次收获；每次生物质 +1、超频 +2" style="--item-color:#d1bb7e">${uiIcon("pollen")}<b>${game.pollenCharges}</b></span>`] : []),
       ...relics.map((relic) => `<span class="build-item fused" title="遗物：${relic.name}" style="--item-color:${relic.color}">${relic.icon}<b>◆</b></span>`),
-      ...merchantItems.map((item) => `<span class="build-item" title="商店：${item.name}" style="--item-color:#f0c47c">${item.icon}<b>商</b></span>`),
+      ...merchantItems.map((item) => `<span class="build-item" title="商店：${item.name} · ${item.copy}${item.id === "harvestward" ? `（剩余 ${game.harvestWardCharges} 次）` : ""}" style="--item-color:#ad9d6e">${uiIcon(({seedparcel:"bag",waterseal:"water",harvestward:"pollen",grip:"rifle"})[item.id]||item.id)}<b>${item.id === "harvestward" ? game.harvestWardCharges : "商"}</b></span>`),
       ...statTalents.map((item) => `<span class="build-item" title="属性：${item.name} LV.${game.statTalents[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.statTalents[item.id]}</b></span>`),
       ...comboCards.map((combo) => `<span class="build-item fused" title="组合卡：${combo.name}" style="--item-color:${combo.color}">${combo.icon}<b>卡</b></span>`),
       ...owned.map((item) => `<span class="build-item" title="${item.name} LV.${game.items[item.id]}" style="--item-color:${item.color}">${item.icon}<b>${game.items[item.id]}</b></span>`),
@@ -3040,6 +3199,27 @@
     ui.characterDetailCd.textContent = `${character.skillCd} 秒`;
     ui.characterDetailCopy.textContent = character.skillDetail;
     ui.characterDetailPassive.textContent = `被动：${character.passive}　专属插件：${character.exclusive}　定位：${character.role}`;
+    renderCompanionPortraits();
+  }
+
+  function renderCompanionPortraits() {
+    if (!companionAtlas.complete || !companionAtlas.naturalWidth) return;
+    const cell = companionAtlas.naturalWidth / 3, scale = companionAtlas.naturalHeight / 1024;
+    const draw = (target, id, head = false) => {
+      if (!target) return;
+      const index = ["sprout", "beat", "mochi"].indexOf(id);
+      const context = target.getContext("2d");
+      context.clearRect(0, 0, target.width, target.height);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      if (head) context.drawImage(companionAtlas, index * cell + 60 * scale, 120 * scale, cell - 120 * scale, 450 * scale, 0, 0, target.width, target.height);
+      else context.drawImage(companionAtlas, index * cell, 0, cell, companionAtlas.naturalHeight, 0, 0, target.width, target.height);
+      target.dataset.character = id;
+      target.setAttribute("aria-label", `${CHARACTERS[id].name}${head ? "头像" : "全身立绘"}`);
+    };
+    draw(document.querySelector(".companion-art"), selectedCharacter);
+    document.querySelectorAll(".character-card").forEach((card) => draw(card.querySelector("canvas"), card.dataset.character, true));
+    draw(document.querySelector(".companion-head"), game ? game.character : selectedCharacter, true);
   }
 
   function updateParticles(dt) {
@@ -3166,6 +3346,10 @@
       showToast("田块过于密集", "离现有田块更远一点再使用开荒铲");
       return false;
     }
+    if (game.worldInteractables.some((node) => Math.hypot(node.x-x,node.y-y)<88)) {
+      showToast("这里有野外设施", "离设施远一点再开垦，保留互动空间");
+      return false;
+    }
     const zone = FIELD_ZONES.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
     game.plots.push(makePlot(x, y, zone.id, true));
     game.activeTools.shovel--;
@@ -3279,35 +3463,11 @@
     ui.phaseFill.style.background = activeRewardWave ? "linear-gradient(90deg, #f1b34c, #fff48b)" : night ? "linear-gradient(90deg, #69578f, #c1709a)" : resting ? "linear-gradient(90deg, #58baa1, #9be4b2)" : "linear-gradient(90deg, #f7a947, #f8d66d)";
   }
 
-  function draw() {
-    idleTime += .016;
-    const t = game ? game.elapsed : idleTime;
-    drawBackground(t, game ? game.phase : "day", game ? game.phaseTime / currentDuration() : .3);
-    if (game) {
-      const shakeAmount = game.shake * 8;
-      ctx.save();
-      ctx.translate(rand(-shakeAmount, shakeAmount), rand(-shakeAmount, shakeAmount));
-      drawFarm();
-      drawChests();
-      drawPickups();
-      drawBullets();
-      drawEnemies();
-      drawPlayer();
-      drawParticles();
-      drawFloaters();
-      ctx.restore();
-      drawWorldOverlay();
-    } else {
-      drawIdleFarm(t);
-    }
-    if (state === "playing") drawCrosshair();
-    requestAnimationFrame(frame);
-  }
-
   function frame(now) {
     const dt = Math.min(.033, (now - lastTime) / 1000);
     lastTime = now;
     update(dt);
+    if (state === "start") renderWeaponPreviews(now);
     drawFrameOnly();
   }
 
@@ -3323,6 +3483,7 @@
       ctx.translate(VIEW.x + VIEW.w / 2 - game.camera.x, VIEW.y + VIEW.h / 2 - game.camera.y);
       drawWorldScenery(t);
       drawFarm();
+      drawWorldInteractables();
       drawHazards();
       drawChests();
       drawPickups();
@@ -3884,43 +4045,22 @@
     } else { ctx.save(); ctx.rotate(p.angle); drawAiBody(game.character, character); ctx.restore(); }
     ctx.rotate(p.angle);
     ctx.scale(.86,.86);
-    if (p.attackMode === "melee") {
-      ctx.strokeStyle = "#654b5e"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(45, 9); ctx.stroke();
-      ctx.strokeStyle = "#fff5c1"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, 7); ctx.lineTo(45, 7); ctx.stroke();
-      ctx.strokeStyle = "#ff9f6d"; ctx.lineWidth = 9; ctx.shadowColor = "#ffb465"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(43, -7, 21, .36, 2.08); ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.strokeStyle = "#fff3bd"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, -7, 21, .36, 2.08); ctx.stroke();
-      ctx.fillStyle = "#91dc83"; ctx.beginPath(); ctx.ellipse(28, 14, 5, 3, .45, 0, TAU); ctx.fill();
-    } else drawWeaponModel(game.weapon);
+    window.WildrootWeapons.draw(ctx, game.weapon, { time: game.elapsed, attack: game.weaponFx.time / game.weaponFx.duration, hands: true, charged: game.weaponShotCount % 6 === 5 });
     ctx.restore();
   }
 
-  function drawWeaponModel(weapon) {
-    ctx.save(); ctx.translate(11, 0); ctx.strokeStyle = "#e9e4cd"; ctx.lineWidth = 3; ctx.lineJoin = "round";
-    if (weapon === "shotgun") {
-      ctx.fillStyle = "#746449"; ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(8,-9); ctx.lineTo(8,9); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#b48c63"; ctx.beginPath(); ctx.roundRect(5, -9, 30, 18, 6); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#4f5a43"; for (const y of [-5, 1, 7]) ctx.fillRect(29, y - 2, 15, 4);
-      ctx.fillStyle = "#d3bb78"; for (const y of [-5, 1, 7]) ctx.fillRect(41, y - 2, 4, 4);
-    } else if (weapon === "rail") {
-      ctx.fillStyle = "#465d4a"; ctx.beginPath(); ctx.roundRect(-3, -8, 51, 16, 4); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#86a99a"; ctx.fillRect(3, -5, 39, 10);
-      ctx.strokeStyle = "#c7d7b8"; ctx.lineWidth = 2; for (let x = 8; x < 42; x += 9) { ctx.beginPath(); ctx.arc(x,0,6,0,TAU); ctx.stroke(); }
-      ctx.fillStyle = "#cfb96f"; ctx.fillRect(11, -2, 27, 4); ctx.fillStyle = "#506147"; ctx.fillRect(46, -4, 13, 8);
-      ctx.fillStyle = "#a2cbb5"; ctx.beginPath(); ctx.arc(58,0,3 + Math.sin(game.elapsed * 8),0,TAU); ctx.fill();
-    } else if (weapon === "wand") {
-      ctx.strokeStyle = "#6e7951"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-2, 3); ctx.quadraticCurveTo(18,-5,39,0); ctx.stroke();
-      ctx.strokeStyle = "#99b27f"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(5,1); ctx.quadraticCurveTo(17,9,29,-1); ctx.stroke();
-      ctx.fillStyle="#8ba76b"; ctx.beginPath(); ctx.ellipse(19,4,6,3,.5,0,TAU); ctx.fill();
-      ctx.fillStyle = "#a5c59b"; ctx.strokeStyle = "#e9e4cd"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(43, 0, 9 + Math.sin(game.elapsed * 6) * 2, 0, TAU); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#d9cb85"; ctx.beginPath(); ctx.arc(43, 0, 3, 0, TAU); ctx.fill();
-    } else {
-      ctx.fillStyle = "#59674c"; ctx.beginPath(); ctx.moveTo(-7,-4); ctx.lineTo(8,-9); ctx.lineTo(12,8); ctx.lineTo(-5,8); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#dedac0"; ctx.beginPath(); ctx.roundRect(5, -8, 35, 16, 5); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#b58a61"; ctx.beginPath(); ctx.roundRect(13,-5,15,10,4); ctx.fill();
-      ctx.strokeStyle = "#75805a"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(31,-11); ctx.lineTo(38,-11); ctx.lineTo(41,-6); ctx.stroke();
-      ctx.fillStyle = "#d0b66e"; ctx.beginPath(); ctx.arc(41, 0, 5 + (game.weaponShotCount % 6 === 5 ? 2 : 0), 0, TAU); ctx.fill();
-    }
-    ctx.restore();
+  let weaponPreviewAt = 0;
+  function renderWeaponPreviews(now = performance.now()) {
+    if (now - weaponPreviewAt < 65) return;
+    weaponPreviewAt = now;
+    document.querySelectorAll(".weapon-model").forEach((target) => {
+      const c = target.getContext("2d"), id = target.dataset.weapon;
+      c.clearRect(0, 0, target.width, target.height);
+      c.save(); c.translate(36, 42); c.scale(1.55, 1.55);
+      const phase = (now / 1000) % 2.8;
+      window.WildrootWeapons.draw(c, id, { time: now / 1000, attack: id === selectedWeapon && phase < .4 ? 1 - phase / .4 : 0, charged: id === selectedWeapon });
+      c.restore();
+    });
   }
 
   function drawAiBody(type, character) {
@@ -4344,6 +4484,7 @@
     ctx.save(); ctx.fillStyle = "#e6ead2eb"; ctx.strokeStyle = "#b2c198"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#6f8859"; ctx.font = "500 7px 'Microsoft YaHei UI'"; ctx.textAlign = "left"; ctx.fillText("FIELD RADAR / 农区", x + 8, y + 11);
     for (const zone of FIELD_ZONES) { const center = zonePosition(zone.id); ctx.fillStyle = zone.color; ctx.beginPath(); ctx.arc(x + 7 + center.x / WORLD_W * (w - 14), y + 16 + center.y / WORLD_H * (h - 22), 4, 0, TAU); ctx.fill(); }
+    for(const node of game.worldInteractables.filter((entry)=>!entry.used)){const sx=x+7+node.x/WORLD_W*(w-14),sy=y+16+node.y/WORLD_H*(h-22);ctx.fillStyle="#8a723f";ctx.beginPath();ctx.moveTo(sx,sy-2.7);ctx.lineTo(sx+2.7,sy);ctx.lineTo(sx,sy+2.7);ctx.lineTo(sx-2.7,sy);ctx.closePath();ctx.fill();}
     ctx.fillStyle = "#ef668d"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 7 + game.player.x / WORLD_W * (w - 14), y + 16 + game.player.y / WORLD_H * (h - 22), 4.5, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.restore();
   }
@@ -4435,7 +4576,6 @@
     const character = CHARACTERS[selectedCharacter];
     document.querySelector(".ai-mascot em").textContent = character.code;
     document.querySelector(".ai-mascot").dataset.character = selectedCharacter;
-    document.querySelector(".ai-mascot .face b").textContent = selectedCharacter === "beat" ? ">ᴗ<" : selectedCharacter === "mochi" ? "˶ᵔ ᵕ ᵔ˶" : "˙ᴗ˙";
     document.querySelector(".pitch b").textContent = `${character.name} ${character.code}`;
     renderCharacterDetail();
     sound.tone(430, .08, "triangle", .04, 180);
@@ -4445,6 +4585,14 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
+      content67: () => ({ items: MERCHANT_ITEMS.map(({id,cost,daily})=>({id,cost,daily:Boolean(daily)})), nodes: game.worldInteractables.map((node)=>({...node})), rendered: game.lastRenderedInteractables || [], charges: { pollen:game.pollenCharges, ward:game.harvestWardCharges }, crystals:meta.crystals, weaponFx:{...game.weaponFx}, wetReserve:game.waterReserve, interactReach:game.interactionReach, dailyOwned:{...game.merchantDailyOwned} }),
+      resources: (values = {}) => { for(const key of ["coins","water"])if(values[key]!==undefined)game[key]=values[key];if(values.hp!==undefined)game.player.hp=values.hp;if(values.shovel!==undefined)game.activeTools.shovel=values.shovel;return true; },
+      offerShop: (ids) => { game.phase="rest";game.merchantStock=ids.filter((id)=>MERCHANT_ITEMS.some((item)=>item.id===id));renderRestShop();return true; },
+      purchase: (id) => { buyMerchantItem(id);return game.coins; },
+      worldFixture: (id) => { if(!WORLD_INTERACTIONS.some((type)=>type.id===id))return false;game.worldInteractables=[{id,x:game.player.x+30,y:game.player.y,used:false,day:game.day,seed:game.unlockedSeeds[0]}];return true; },
+      worldUse: () => { input.interact=true;updateInteraction();return game.worldInteractables[0]?.used; },
+      worldRoll: (probability = .72, weights = null, maximum = 4) => { EXPLORATION_CONFIG.slotChance=probability;EXPLORATION_CONFIG.maxPerDay=maximum;if(weights)EXPLORATION_CONFIG.weights=weights;generateWorldInteractables();return game.worldInteractables.map((node)=>({...node})); },
+      freeze: (seconds = 999) => { game.freezeTimer=seconds;return true; },
       artAssets: () => ({ companions: companionAtlas.complete && companionAtlas.naturalWidth > 0, enemies: enemyAtlas.complete && enemyAtlas.naturalWidth > 0, crops: cropAtlas.complete && cropAtlas.naturalWidth > 0, props: propAtlas.complete && propAtlas.naturalWidth > 0, scale: $("game-shell").style.getPropertyValue("--ui-scale"), icons: document.querySelectorAll(".ui-icon").length }),
       artGallery: () => {
         game.enemies.length=0;game.enemyBullets.length=0;game.hazards.length=0;game.freezeTimer=999;
@@ -4511,13 +4659,20 @@
     fit();
     document.querySelectorAll("[data-ui-icon]").forEach((node) => { node.innerHTML = uiIcon(node.dataset.uiIcon); });
     document.querySelectorAll(".seed-card").forEach((node) => { node.querySelector(".seed-glyph").innerHTML = uiIcon(CROP_TYPES[Number(node.dataset.seed)].id); });
-    document.querySelectorAll(".weapon-card").forEach((node) => node.insertAdjacentHTML("afterbegin", uiIcon(node.dataset.weapon)));
+    document.querySelectorAll(".weapon-card").forEach((node) => {
+      const preview = document.createElement("canvas");
+      preview.width = 176; preview.height = 84; preview.className = "weapon-model";
+      preview.dataset.weapon = node.dataset.weapon;
+      preview.setAttribute("aria-label", `${WEAPONS[node.dataset.weapon].name}动态结构预览`);
+      node.prepend(preview);
+    });
     document.querySelectorAll("[data-meta]").forEach((node) => { node.querySelector("i").innerHTML = uiIcon(node.dataset.meta); });
     $("lab-btn").addEventListener("click", () => $("lab-overlay").classList.remove("hidden"));
     $("lab-close").addEventListener("click", () => $("lab-overlay").classList.add("hidden"));
     $("lab-overlay").addEventListener("click", (event) => { if (event.target === $("lab-overlay")) $("lab-overlay").classList.add("hidden"); });
   }
   initializeArtInterface();
+  companionAtlas.addEventListener("load", renderCompanionPortraits);
   renderCharacterDetail();
   updateMetaDisplay();
   requestAnimationFrame(frame);

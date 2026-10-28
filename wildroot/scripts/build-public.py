@@ -11,11 +11,11 @@ root = Path(__file__).resolve().parent.parent
 html = (root / "index.html").read_text(encoding="utf-8")
 assets = {}
 for name in ("companions", "enemies", "crops", "props"):
-    data = (root / "assets" / f"{name}-v66.png").read_bytes()
+    version = "v67" if name == "companions" else "v66"
+    data = (root / "assets" / f"{name}-{version}.png").read_bytes()
     assets[name] = "data:image/png;base64," + base64.b64encode(data).decode("ascii")
 for name in ("styles.css", "art-direction.css"):
     css = (root / name).read_text(encoding="utf-8")
-    css = css.replace('url("assets/companions-v66.png")', "none")
     html = html.replace(f'<link rel="stylesheet" href="{name}" />', f"<style>\n{css}\n</style>")
 settings = "\n".join(
     f"window.{key} = {json.dumps(assets[name])};"
@@ -26,8 +26,7 @@ settings = "\n".join(
         ("props", "WILDROOT_PROP_ATLAS"),
     )
 )
-settings += '\ndocument.documentElement.style.setProperty("--companion-atlas", "url(" + window.WILDROOT_COMPANION_ATLAS + ")");'
-for name in ("game-config.js", "game.js"):
+for name in ("game-config.js", "weapon-models.js", "game.js"):
     code = (root / name).read_text(encoding="utf-8")
     if name == "game.js":
         code = settings + "\n" + code

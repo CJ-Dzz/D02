@@ -1,6 +1,6 @@
 # 荒穗计划 · 温室档案美术规范
 
-版本：BUILD 6.6，2026-10-28。
+版本：BUILD 6.7，2026-10-28。
 
 ## 方向
 
@@ -34,12 +34,14 @@
 
 | 文件 | 内容 | 接入 |
 | --- | --- | --- |
-| `companions-v66.png` | 小芽、霹雳、奶泡完整立绘 | 首页、角色卡、HUD 头像、局内角色 |
+| `companions-v67.png` | 小芽好奇笑、霹雳挑眉眨眼、奶泡弯眼浅笑的完整立绘 | 首页 Canvas 大立绘、角色卡和 HUD Canvas 头像、局内角色；加载完成后主动重绘 |
 | `enemies-v66.png` | 9 种普通怪物与 3 名 Boss | 实际敌人、Boss 出场、已发现图鉴 |
 | `crops-v66.png` | 8 种基础作物、4 种组合设施 | 成熟与生长作物、双枝杂交、组合设施、图鉴 |
 | `props-v66.png` | 货郎、遗物箱、灌溉泵站、温室 | 地图设施与互动对象 |
 
-四张 PNG 均由内置 imagegen 生成，保留透明 alpha 原始文件。使用图集源矩形直接绘制，未在代码中逐帧读取或修改像素。角色保持直立，武器独立瞄准；怪物用左右朝向、起伏、受击高亮、冰冻色调与精英标记表现状态。未完成加载时保留程序绘制后备。
+当前四张 PNG 均由内置 imagegen 生成，保留透明 alpha 原始文件；旧 `companions-v66.png` 留作上一版素材。使用图集源矩形直接绘制，未在运行代码中逐帧读取或修改像素。角色保持直立，武器独立瞄准；怪物用左右朝向、起伏、受击高亮、冰冻色调与精英标记表现状态。局内图集未完成加载时保留程序绘制后备。
+
+五种武器通过 `weapon-models.js` 的结构几何绘制体积：同一套模型用于菜单与局内；顶面、侧面、枪口、握柄与手部按层绘制，加入后坐、枪机、泵动、线圈脉冲、悬浮核心与镰刃挥砍。六类野外设施采用相同色板与细描边，分别为桶、交换机、种子柜、旧终端、修理桌和授粉风铃，附统一图标、菱形地图标记、费用和使用状态。
 
 粒子采用叶片、花粉点、短火星、双层冲击环和有内缘的镰刀弧；友方弹丸使用带尾迹的种子轮廓，敌弹使用珊瑚外壳与浅色核心。地图色彩与草斑降饱和，农田改用旧木与土色，避免抢过人物、植物和危险预警。
 
@@ -50,6 +52,12 @@
 以下为本轮使用内置 imagegen 的最终素材提示词核心规格；完整的主题、对象、布局、透明度和避让规则均保留，便于后续延续风格。
 
 ### 角色图集 / stylized-concept
+
+BUILD 6.7 编辑源：`companions-v66.png`；最终输出：`companions-v67.png`（1536×1024，RGBA）。内置 imagegen 编辑提示词如下：
+
+Edit the provided transparent three-character atlas for the Wildroot cute post-apocalyptic farming roguelite. Preserve the exact THREE equal-width vertical columns, full-body figures, existing character identities, clothing, jade/ivory/brass/coral palette, leafy accessories, relative scale, baseline and hand-painted premium 2D cel finish. Keep true transparent background. Improve facial craftsmanship and make the three faces conspicuously different, not the same face with a hair change. LEFT Sprout: softly rounded face, large bright curious amber eyes with different-sized glints, relaxed gently raised eyebrows, small open smile showing delight at a seedling, warm cheek blush, one tiny beauty mark below her left eye. CENTER Beat: more angular lively face, one eye confidently WINKING shut and the other slightly narrowed golden eye, clearly asymmetrical raised eyebrow, playful sideways grin with ONE small visible canine tooth, energetic cocky personality. RIGHT Mochi: round soft cheeks, BOTH eyes relaxed crescent-shaped nearly closed smiling eyes, small CLOSED contented smile, delicate blush and three tiny freckles on each cheek, tranquil caring personality. These expressions must be easily differentiated even when scaled down. Give faces cleaner eyelids, coherent mouth shapes, natural blush, subtle warm shading and readable fine details. Improve collar seams, hair locks and hand anatomy without clutter. Do not give them identical eye or mouth shapes. Do not add weapons, text, icons, borders, shadows, scenery or extra characters. Each entire figure stays fully inside its existing third, with generous margins and no overlap. Transparent alpha must be preserved. Atlas intended for full-body menu portrait and in-game character source.
+
+原 BUILD 6.6 基础图集提示词：
 
 Production-ready transparent character sprite atlas for a polished cute post-apocalyptic farming roguelite browser game, titled Wildroot. One horizontal atlas with exactly three equally sized vertical cells, left center right. Each third contains one complete full-body character, centered, same scale and baseline, generous empty margins, no cropping or overlaps. Truly transparent background; no text, labels, scene or cast shadow. Premium indie game 2D hand-painted cel illustration with crisp dark evergreen outlines, large expressive faces, restrained detail, 2.5-head chibi proportions, three-quarter front view facing slightly right. Matte shading, warm ivory highlights; cohesive muted jade, warm coral, honey brass and charcoal palette. Left Sprout: dusty rose bob, small leafy pigtails, sprout antenna, jade field jacket, ivory dress, dark boots, brass seed satchel, tiny teal collar LED, holding a seedling. Center Beat: copper-orange twin tufts, brass headphones, coral utility jacket, dark moss shorts, cream scarf, battery backpack, confident expression, lightning hairclip. Right Mochi: fluffy mint bob with round side locks, ivory and sage raincoat, coral first-aid satchel, jade boots, small pale cyan shield ornament, gentle face. Clear dark eyes, blush and tiny mouth; identical finishing quality. Avoid glossy 3D, neon, noise and photorealism.
 
