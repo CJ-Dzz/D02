@@ -14,7 +14,7 @@ for name in ("companions", "enemies", "crops", "props"):
     version = "v67" if name == "companions" else "v66"
     data = (root / "assets" / f"{name}-{version}.png").read_bytes()
     assets[name] = "data:image/png;base64," + base64.b64encode(data).decode("ascii")
-for name in ("styles.css", "art-direction.css"):
+for name in ("styles.css", "art-direction.css", "preparation.css"):
     css = (root / name).read_text(encoding="utf-8")
     html = html.replace(f'<link rel="stylesheet" href="{name}" />', f"<style>\n{css}\n</style>")
 settings = "\n".join(
@@ -26,7 +26,7 @@ settings = "\n".join(
         ("props", "WILDROOT_PROP_ATLAS"),
     )
 )
-for name in ("game-config.js", "weapon-models.js", "game.js"):
+for name in ("game-config.js", "weapon-models.js", "world-depth.js", "game.js"):
     code = (root / name).read_text(encoding="utf-8")
     if name == "game.js":
         code = settings + "\n" + code

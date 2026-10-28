@@ -67,6 +67,7 @@
     return image;
   }
   const ICON_PATHS = {
+    book: '<path d="M12 5C9 2 4 2 2 3v16c4-1 7 0 10 2 3-2 6-3 10-2V3c-3-1-7-1-10 2ZM12 5v16M5 7l4 1M5 11l4 1M15 8l4-1M15 12l4-1"/>',
     leaf: '<path d="M5 19C2 7 9 3 21 3c0 12-5 17-16 16ZM5 19 16 8M9 15l-1-5M12 12h5"/>',
     water: '<path d="M12 3C10 7 5 11 5 15a7 7 0 0 0 14 0c0-4-5-8-7-12Z"/><path d="M8 15c0 2 1 3 3 4"/>',
     coin: '<path d="m12 3 8 9-8 9-8-9Z"/><path d="m12 7 4 5-4 5-4-5Z"/>',
@@ -225,6 +226,13 @@
   };
   let selectedCharacter = "sprout";
   let selectedWeapon = "rifle";
+  let preparationStep = "character";
+  let characterTransitionTimer = 0;
+  const CHARACTER_DOSSIERS = {
+    sprout: { label:"AGRICULTURE", quote:"“明天，一定会发芽的。”", tags:["均衡农战","收获爆发"] },
+    beat: { label:"COMBAT RHYTHM", quote:"“你负责种田，我负责让末日热闹一点。”", tags:["爆发火力","作物导电"] },
+    mochi: { label:"CARE PROTOCOL", quote:"“别着急，我会护住我们的春天。”", tags:["温室守护","稳健续航"] }
+  };
 
   const WEAPONS = {
     rifle: { name: "脉冲步枪", tag: "校准连射", copy: "每第 6 次射击自动发射金色过载弹，造成 2.2 倍伤害并额外穿透。", damage: 1, fire: 1, speed: 1, size: 1, shots: 1, spread: 0, life: 1.25, pierce: 0, homing: 0, splash: 0, overchargeEvery: 6 },
@@ -581,6 +589,7 @@
     input.interact = false;
     input.dash = false;
     input.skill = false;
+    if (hasTerrain("bridge")) { game.player.x = 1055; game.camera.x = 1055; }
     selectSeed(startingIds[0]);
     rollMerchantStock(true);
     generateWorldInteractables();
@@ -666,7 +675,75 @@
     ui.start.classList.remove("hidden");
     $("lab-overlay").classList.add("hidden");
     ui.event.classList.add("hidden");
+    setPreparationStep("character", false);
     updateMetaDisplay();
+  }
+
+  function setPreparationStep(step, focus = true) {
+    preparationStep = step === "weapon" ? "weapon" : "character";
+    ui.start.dataset.preparation = preparationStep;
+    $("companion-step").classList.toggle("hidden", preparationStep !== "character");
+    $("weapon-step").classList.toggle("hidden", preparationStep !== "weapon");
+    document.querySelector(".expedition-loadout").classList.toggle("hidden", preparationStep !== "weapon");
+    document.querySelectorAll("[data-prep-step]").forEach((node) => node.classList.toggle("active", node.dataset.prepStep === preparationStep));
+    $("start-btn").querySelector("span").textContent = preparationStep === "character" ? "确认同行者 · 选择武器" : "开始远征";
+    $("character-more").open = false;
+    renderWeaponDetail();
+    if (focus) $("start-btn").focus({ preventScroll:true });
+  }
+
+  function advancePreparation() {
+    if (preparationStep === "character") { setPreparationStep("weapon"); sound.tone(360,.1,"triangle",.03,120); }
+    else openStory();
+  }
+
+  function selectCharacter(id, direction = 0) {
+    if (!CHARACTERS[id]) return;
+    const ids = Object.keys(CHARACTERS), oldIndex = ids.indexOf(selectedCharacter), newIndex = ids.indexOf(id);
+    if (id !== selectedCharacter) {
+      const outgoing = document.querySelector(".companion-outgoing"), current = document.querySelector(".companion-art");
+      const c = outgoing.getContext("2d");c.clearRect(0,0,outgoing.width,outgoing.height);c.drawImage(current,0,0);
+      ui.start.classList.remove("is-switching");
+      ui.start.style.setProperty("--switch-dir", direction || (newIndex > oldIndex ? 1 : -1));
+      void ui.start.offsetWidth;
+      ui.start.classList.add("is-switching");
+      clearTimeout(characterTransitionTimer);
+      characterTransitionTimer = setTimeout(() => ui.start.classList.remove("is-switching"), 480);
+    }
+    selectedCharacter = id;
+    document.querySelectorAll(".character-card").forEach((card) => { const active=card.dataset.character===id;card.classList.toggle("active",active);card.setAttribute("aria-pressed",String(active)); });
+    document.querySelector(".ai-mascot em").textContent = CHARACTERS[id].code;
+    document.querySelector(".ai-mascot").dataset.character = id;
+    $("character-more").open = false;
+    renderCharacterDetail();
+    sound.tone(430,.08,"triangle",.03,180);
+  }
+
+  function cyclePreparation(direction) {
+    if (preparationStep === "character") {
+      const ids=Object.keys(CHARACTERS);selectCharacter(ids[(ids.indexOf(selectedCharacter)+direction+ids.length)%ids.length],direction);
+    } else {
+      const ids=Object.keys(WEAPONS);selectWeapon(ids[(ids.indexOf(selectedWeapon)+direction+ids.length)%ids.length]);
+    }
+  }
+
+  function selectWeapon(id) {
+    if(!WEAPONS[id])return;
+    selectedWeapon=id;
+    document.querySelectorAll(".weapon-card").forEach((card)=>{const active=card.dataset.weapon===id;card.classList.toggle("active",active);card.setAttribute("aria-pressed",String(active));});
+    const stage=document.querySelector(".weapon-stage");
+    if(!matchMedia("(prefers-reduced-motion: reduce)").matches)stage.animate([{opacity:.35,transform:"translateY(7px)"},{opacity:1,transform:"none"}],{duration:250,easing:"ease-out"});
+    renderWeaponDetail();sound.tone(360,.08,"triangle",.03,120);
+  }
+
+  function renderWeaponDetail() {
+    const weapon=WEAPONS[selectedWeapon];
+    $("weapon-name").textContent=weapon.name;$("weapon-tag").textContent=weapon.tag;
+    $("weapon-description").textContent=weapon.copy;
+    const traits={rifle:["自动连射","过载穿透"],shotgun:["多发霰弹","贴脸孢爆"],rail:["长距离","贯穿增伤"],wand:["轻度追踪","命中分芽"],scythe:["近战扇形","击退敌群"]};
+    $("weapon-traits").innerHTML=traits[selectedWeapon].map((tag)=>`<span>${tag}</span>`).join("");
+    $("selected-companion-name").textContent=`${CHARACTERS[selectedCharacter].name} / ${CHARACTERS[selectedCharacter].code}`;
+    $("weapon-stage-tag").textContent=`FIELD EQUIPMENT / 0${Object.keys(WEAPONS).indexOf(selectedWeapon)+1}`;
   }
 
   function startRun() {
@@ -2483,7 +2560,7 @@
   ];
   const interactionIcons = new Map();
   function generateWorldInteractables() {
-    const anchors = [[890,890],[1450,670],[930,530],[760,1120],[1930,820],[2040,1110],[520,760],[900,210],[2060,330],[330,1060]];
+    const anchors = [[950,980],[1550,740],[930,530],[760,1120],[1930,820],[2040,1110],[520,760],[900,210],[2110,350],[300,1020]];
     // Fisher–Yates 保持位置等概率，避开中央河床、所有原生田、移动温室轨道及泵站。
     for (let i=anchors.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [anchors[i],anchors[j]]=[anchors[j],anchors[i]]; }
     const pool = WORLD_INTERACTIONS.filter((type) => Number(EXPLORATION_CONFIG.weights[type.id] ?? type.weight) > 0).slice();
@@ -2493,6 +2570,7 @@
       if(game.worldInteractables.length>=limit||!pool.length)break;
       if(!chance(clamp(EXPLORATION_CONFIG.slotChance,0,1)))continue;
       if(game.plots.some((plot)=>Math.hypot(plot.x-x,plot.y-y)<155))continue;
+      if(window.WildrootDepth.props.some((prop)=>Math.hypot(prop.x-x,prop.y-y)<Math.max(85,prop.w*.55+38)))continue;
       const total=pool.reduce((sum,type)=>sum+Number(EXPLORATION_CONFIG.weights[type.id]??type.weight),0);
       let roll=Math.random()*total, index=pool.length-1;
       for(let i=0;i<pool.length;i++){roll-=Number(EXPLORATION_CONFIG.weights[pool[i].id]??pool[i].weight);if(roll<=0){index=i;break;}}
@@ -2538,9 +2616,9 @@
     if (hadSupplies) renderBuildDock();
   }
 
-  function drawWorldInteractables() {
-    game.lastRenderedInteractables = [];
-    for(const node of game.worldInteractables){
+  function drawWorldInteractables(single = null) {
+    if (!single) game.lastRenderedInteractables = [];
+    for(const node of single ? [single] : game.worldInteractables){
       const type=WORLD_INTERACTIONS.find((entry)=>entry.id===node.id), near=dist(node,game.player)<70+game.interactionReach;
       if(Math.abs(node.x-game.camera.x)>VIEW.w/2+90||Math.abs(node.y-game.camera.y)>VIEW.h/2+100)continue;
       game.lastRenderedInteractables.push(node.id);
@@ -3193,11 +3271,18 @@
 
   function renderCharacterDetail() {
     const character = CHARACTERS[selectedCharacter];
+    const dossier = CHARACTER_DOSSIERS[selectedCharacter];
+    $("character-name").textContent = character.name;
+    $("character-code").textContent = `${character.code} / ${dossier.label}`;
+    $("character-index").textContent = `0${Object.keys(CHARACTERS).indexOf(selectedCharacter)+1} / 03`;
+    $("character-quote").textContent = dossier.quote;
+    $("character-tags").innerHTML = dossier.tags.map((tag)=>`<span>${tag}</span>`).join("");
     ui.characterDetailIcon.innerHTML = uiIcon(selectedCharacter);
     document.querySelector(".portrait").dataset.character = selectedCharacter;
-    ui.characterDetailSkill.textContent = `主动 · ${character.skill}`;
+    ui.characterDetailSkill.textContent = character.skill;
     ui.characterDetailCd.textContent = `${character.skillCd} 秒`;
-    ui.characterDetailCopy.textContent = character.skillDetail;
+    ui.characterDetailCopy.textContent = character.skillCopy;
+    $("character-full-skill").textContent = character.skillDetail;
     ui.characterDetailPassive.textContent = `被动：${character.passive}　专属插件：${character.exclusive}　定位：${character.role}`;
     renderCompanionPortraits();
   }
@@ -3350,6 +3435,9 @@
       showToast("这里有野外设施", "离设施远一点再开垦，保留互动空间");
       return false;
     }
+    if (window.WildrootDepth.props.some((prop) => Math.abs(prop.x-x)<prop.w*.55+30 && y<prop.y+28 && y>prop.y-prop.h-15)) {
+      showToast("这里是场景设施", "请在房屋、树木和水箱的外围开垦");return false;
+    }
     const zone = FIELD_ZONES.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
     game.plots.push(makePlot(x, y, zone.id, true));
     game.activeTools.shovel--;
@@ -3483,13 +3571,10 @@
       ctx.translate(VIEW.x + VIEW.w / 2 - game.camera.x, VIEW.y + VIEW.h / 2 - game.camera.y);
       drawWorldScenery(t);
       drawFarm();
-      drawWorldInteractables();
       drawHazards();
-      drawChests();
       drawPickups();
+      drawWorldDepthSorted(t);
       drawBullets();
-      drawEnemies();
-      drawPlayer();
       drawParticles();
       drawFloaters();
       ctx.restore();
@@ -3535,6 +3620,7 @@
     ground.addColorStop(1, night ? "#405158" : mapStyle.day[2]);
     ctx.fillStyle = ground;
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    window.WildrootDepth.ground(ctx, { zones: FIELD_ZONES.map((zone)=>({id:zone.id,...zonePosition(zone.id)})), night, time:t, variant:game.mapVariant, bridge:false });
     for (let i = 0; i < scenery.length; i += 7) {
       const s = scenery[i];
       ctx.fillStyle = night ? (i % 14 ? "#72837c22" : "#384f5b22") : (i % 14 ? "#c4cf9424" : "#647d5b22");
@@ -3569,81 +3655,22 @@
 
   function drawMapLandmarks(t, style, night) {
     ctx.save();
-    const dim = night ? .7 : 1;
-    if (propAtlas.complete && propAtlas.naturalWidth) {
-      ctx.globalAlpha=.82;
-      drawAtlasSprite(propAtlas,PROP_SPRITES.greenhouse,420,242,182,158);
-      ctx.globalAlpha=1;
+    for (const [x,y,w,h] of [[1510,1287,115,37],[1885,1260,82,31],[1995,1025,63,27]]) {
+      ctx.fillStyle=night?"#273f3d":"#526f4e";ctx.beginPath();ctx.ellipse(x+3,y+7,w+7,h+5,-.1,0,TAU);ctx.fill();
+      const water=ctx.createLinearGradient(0,y-h,0,y+h);water.addColorStop(0,night?"#35595b":"#73a394");water.addColorStop(1,night?"#4b7675":"#a7bda0");
+      ctx.fillStyle=water;ctx.strokeStyle="#b8cf9c99";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,w,h,-.1,0,TAU);ctx.fill();ctx.stroke();
+      ctx.strokeStyle="#d1dbc266";ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x-12,y-3,w*.5,h*.28,-.1,0,Math.PI);ctx.stroke();
     }
-    // 破碎温室：玻璃骨架、轨道与废弃培养舱。
-    ctx.strokeStyle = night ? "#a9c4c6aa" : "#e5f2c5aa"; ctx.lineWidth = 5;
-    for (let i = -1; i <= 1; i++) {
-      const x = 420 + i * 110;
-      ctx.beginPath(); ctx.arc(x, 225, 52, Math.PI, TAU); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x - 52, 225); ctx.lineTo(x + 52, 225); ctx.stroke();
-    }
-    ctx.strokeStyle = "#665a5c88"; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(320, 278); ctx.lineTo(820, 278); ctx.moveTo(320, 296); ctx.lineTo(820, 296); ctx.stroke();
-    ctx.fillStyle = `${style.accent}${night ? "55" : "88"}`;
-    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(375 + i * 92, 252 + (i % 2) * 12, 10 + (i % 3) * 3, 0, TAU); ctx.fill(); }
-
-    // 旧城天台：水箱、断墙和仍在转动的信号盘。
-    ctx.fillStyle = night ? "#515969" : "#7c7d78"; ctx.strokeStyle = "#d9d3c8aa"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.roundRect(1905, 190, 78, 62, 12); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = night ? "#333c4e" : "#62665e"; for (let y = 204; y < 244; y += 13) ctx.fillRect(1912, y, 64, 4);
-    ctx.strokeStyle = "#d6cab1"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(1838, 262); ctx.lineTo(1853, 209); ctx.stroke();
-    ctx.save(); ctx.translate(1853, 207); ctx.rotate(Math.sin(t * .25) * .12); ctx.strokeStyle = style.accent; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 27, -.9, .9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(24,0); ctx.stroke(); ctx.restore();
-    for (const [x, y, w] of [[1490,218,90],[1605,255,66],[2070,315,85]]) {
-      ctx.fillStyle = night ? "#4d5360" : "#77776e"; ctx.fillRect(x, y, w, 20); ctx.fillStyle = "#9d725d"; for (let bx = x + 8; bx < x + w - 5; bx += 19) ctx.fillRect(bx, y + 3, 12, 5);
-    }
-
-    // 陨坑湿地：多层水洼、芦苇和发光孢子。
-    for (const pool of [[1510,1250,115,43],[1835,1255,82,31],[1960,1045,63,27]]) {
-      ctx.fillStyle = night ? "#507b8799" : "#69b8b099"; ctx.strokeStyle = "#c6f1d099"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(pool[0], pool[1], pool[2], pool[3], -.12, 0, TAU); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = "#e4fff077"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(pool[0] - 12, pool[1], pool[2] * .42, .2, 2.4); ctx.stroke();
-    }
-    for (let i = 0; i < 18; i++) {
-      const x = 1420 + (i * 73) % 650, y = 985 + (i * 97) % 380;
-      ctx.strokeStyle = i % 2 ? "#6f9366" : "#8ba76b"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-4,y-18,x+Math.sin(t+i)*4,y-35); ctx.stroke();
-      ctx.fillStyle = i % 3 ? style.accent : "#e8f1a2"; ctx.beginPath(); ctx.arc(x+Math.sin(t+i)*4,y-38,3,0,TAU); ctx.fill();
-    }
-
-    // 避难所：风力叶片、补丁旗和太阳能板，给中心区明确轮廓。
-    ctx.strokeStyle = "#665567"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(915, 935); ctx.lineTo(915, 825); ctx.stroke();
-    ctx.save(); ctx.translate(915, 820); ctx.rotate(t * .22); ctx.strokeStyle = night ? "#d4d7e4" : "#fff0c5"; ctx.lineWidth = 6;
-    for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(27,-8,50,6); ctx.stroke(); }
-    ctx.fillStyle = style.accent; ctx.beginPath(); ctx.arc(0,0,9,0,TAU); ctx.fill(); ctx.restore();
-    for (const x of [1045, 1135, 1225]) {
-      ctx.save(); ctx.translate(x, 1010); ctx.rotate(-.12); ctx.fillStyle = night ? "#40516f" : "#4d7190"; ctx.strokeStyle = "#b9d9e2"; ctx.lineWidth = 3; ctx.fillRect(-35,-18,70,36); ctx.strokeRect(-35,-18,70,36);
-      ctx.strokeStyle = "#9dbac8"; ctx.lineWidth = 1; for (let gx=-20;gx<=20;gx+=20){ctx.beginPath();ctx.moveTo(gx,-18);ctx.lineTo(gx,18);ctx.stroke();} ctx.restore();
-    }
-
-    // 每局一种额外地貌签名，让重开后的远景轮廓不同。
-    ctx.globalAlpha = .65 * dim; ctx.fillStyle = style.relic;
-    if (game.mapVariant === 0) {
-      for (let i = 0; i < 9; i++) { const x=190+(i*241)%2050,y=170+(i*173)%1120;ctx.beginPath();ctx.arc(x,y,14+i%3*5,0,TAU);ctx.fill(); }
-    } else if (game.mapVariant === 1) {
-      for (let i = 0; i < 8; i++) { const x=220+(i*277)%1980,y=150+(i*199)%1160;ctx.save();ctx.translate(x,y);ctx.rotate(i*.7);ctx.fillRect(-25,-5,50,10);ctx.restore(); }
-    } else {
-      for (let i = 0; i < 10; i++) { const x=170+(i*223)%2070,y=140+(i*181)%1180;ctx.beginPath();ctx.arc(x,y,12+i%4*3,0,TAU);ctx.fill();ctx.fillStyle=style.accent;ctx.beginPath();ctx.arc(x-4,y-4,3,0,TAU);ctx.fill();ctx.fillStyle=style.relic; }
+    for(let i=0;i<16;i++){
+      const x=1420+(i*83)%650,y=1255+(i*47)%170;
+      ctx.strokeStyle="#54744d";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x-5,y-20,x+Math.sin(t+i)*3,y-32);ctx.stroke();
+      ctx.fillStyle=style.accent;ctx.beginPath();ctx.ellipse(x+Math.sin(t+i)*3,y-35,2,5,0,0,TAU);ctx.fill();
     }
     ctx.restore();
   }
 
   function drawTerrainFeatures() {
-    if (hasTerrain("bridge")) {
-      const segments = [[0, 180], [330, 660], [820, 1140], [1300, WORLD_H]];
-      for (const [top, bottom] of segments) {
-        ctx.fillStyle = "#2b3144"; ctx.fillRect(1110, top, 160, bottom - top);
-        ctx.strokeStyle = "#dfad78"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(1110, top); ctx.lineTo(1110, bottom); ctx.moveTo(1270, top); ctx.lineTo(1270, bottom); ctx.stroke();
-      }
-      for (const [top, bottom] of [[180,330],[660,820],[1140,1300]]) {
-        ctx.fillStyle = "#8b674e"; ctx.fillRect(1110, top, 160, bottom - top);
-        ctx.strokeStyle = "#d6b078"; ctx.lineWidth = 3;
-        for (let x = 1118; x < 1270; x += 18) { ctx.beginPath(); ctx.moveTo(x, top + 5); ctx.lineTo(x, bottom - 5); ctx.stroke(); }
-      }
-    }
+    if (hasTerrain("bridge")) window.WildrootDepth.river(ctx, game.phase === "night", game.elapsed);
     if (hasTerrain("greenhouse")) {
       const zone = zonePosition("solar");
       ctx.strokeStyle = "#ffd97d99"; ctx.lineWidth = 7; ctx.setLineDash([18, 12]);
@@ -3710,9 +3737,27 @@
       ctx.fillStyle="#8c9a74";ctx.font="500 6px 'Microsoft YaHei UI'";ctx.fillText(zone.copy,center.x,y-6);
       for(const side of [-1,1]){const lx=center.x+side*94;ctx.strokeStyle="#68734e";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,y+17);ctx.lineTo(lx,y-12);ctx.stroke();ctx.fillStyle=night?"#e2d18d":"#cab97a";ctx.beginPath();ctx.roundRect(lx-3,y-17,6,9,2);ctx.fill();}
     }
-    for(const plot of game.plots) drawPlot(plot);
-    drawMerchantNpc();
     ctx.restore();
+  }
+
+  function drawWorldDepthSorted(t) {
+    const entries=[], actors=[game.player,...game.enemies.filter((enemy)=>!enemy.dead)];
+    const stats={props:0,faded:0,order:[]};
+    game.lastRenderedInteractables=[];
+    game.plots.forEach((plot,index)=>entries.push({id:`plot:${index}`,y:plot.y+25,draw:()=>drawPlot(plot)}));
+    for (const node of game.worldInteractables) entries.push({id:`facility:${node.id}`,y:node.y+17,draw:()=>drawWorldInteractables(node)});
+    for (const chest of game.chests.filter((chest)=>!chest.opened)) entries.push({id:"chest",y:chest.y+17,draw:()=>drawChests(chest)});
+    const home=zonePosition("home");
+    entries.push({id:"merchant",y:home.y+139,draw:drawMerchantNpc});
+    for (const prop of window.WildrootDepth.props) {
+      if(Math.abs(prop.x-game.camera.x)>VIEW.w/2+160||Math.abs(prop.y-game.camera.y)>VIEW.h/2+180)continue;
+      entries.push({id:`scenery:${prop.id}`,y:prop.y,draw:()=>{stats.props++;if(window.WildrootDepth.prop(ctx,prop,{night:game.phase==="night",time:t,actors}))stats.faded++;}});
+    }
+    for (const enemy of game.enemies.filter((enemy)=>!enemy.dead)) entries.push({id:`enemy:${enemy.type}`,y:enemy.y+enemy.radius*.7,draw:()=>drawEnemies(enemy)});
+    entries.push({id:"player",y:game.player.y+19,draw:drawPlayer});
+    entries.sort((a,b)=>a.y-b.y);
+    for(const entry of entries){entry.draw();stats.order.push({id:entry.id,y:entry.y});}
+    game.depthStats=stats;
   }
 
   function drawMerchantNpc() {
@@ -4061,6 +4106,15 @@
       window.WildrootWeapons.draw(c, id, { time: now / 1000, attack: id === selectedWeapon && phase < .4 ? 1 - phase / .4 : 0, charged: id === selectedWeapon });
       c.restore();
     });
+    if (preparationStep === "weapon") {
+      const showcase=$("weapon-showcase"), c=showcase.getContext("2d"), phase=(now/1000)%2.8;
+      c.clearRect(0,0,showcase.width,showcase.height);
+      c.save();c.strokeStyle="#acc48722";c.lineWidth=1;c.setLineDash([5,9]);
+      c.beginPath();c.ellipse(540,270,325,144,0,0,TAU);c.stroke();c.setLineDash([]);
+      c.strokeStyle="#b5c59333";c.beginPath();c.moveTo(140,270);c.lineTo(940,270);c.moveTo(540,85);c.lineTo(540,440);c.stroke();
+      c.translate(268,250+Math.sin(now*.001)*3);c.scale(8,8);
+      window.WildrootWeapons.draw(c,selectedWeapon,{time:now/1000,attack:phase<.4?1-phase/.4:0,charged:true});c.restore();
+    }
   }
 
   function drawAiBody(type, character) {
@@ -4127,8 +4181,8 @@
     ctx.strokeStyle = "#4a4057"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-14,18); ctx.lineTo(-8,18); ctx.moveTo(7,19); ctx.lineTo(13,19); ctx.stroke();
   }
 
-  function drawEnemies() {
-    for (const e of game.enemies) {
+  function drawEnemies(single = null) {
+    for (const e of single ? [single] : game.enemies) {
       if (e.dead) continue;
       ctx.save();
       ctx.translate(e.x, e.y);
@@ -4348,8 +4402,8 @@
     }
   }
 
-  function drawChests() {
-    for (const chest of game.chests) {
+  function drawChests(single = null) {
+    for (const chest of single ? [single] : game.chests) {
       if (chest.opened) continue;
       const bob = Math.sin(chest.pulse * 3) * 3;
       ctx.save(); ctx.translate(chest.x, chest.y + bob);
@@ -4515,8 +4569,17 @@
   window.addEventListener("keydown", (event) => {
     const key = event.key.toLowerCase();
     if (!$("lab-overlay").classList.contains("hidden")) { if(key==="escape") $("lab-overlay").classList.add("hidden"); return; }
-    if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
-    if (state === "start" && (key === "enter" || key === " ")) { openStory(); return; }
+    if ((state !== "start" || key !== " ") && [" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
+    if (state === "codex" && key === "escape") { event.preventDefault();closeCodex();return; }
+    if (state === "start") {
+      if (key === "escape") { event.preventDefault();if($("character-more").open)$("character-more").open=false;else if(preparationStep==="weapon")setPreparationStep("character");return; }
+      if (event.target.closest?.("summary, .utility-button")) return;
+      if (key === "arrowleft" || key === "arrowright") { event.preventDefault();cyclePreparation(key === "arrowright" ? 1 : -1);$("start-btn").focus({preventScroll:true});return; }
+      if (key === "enter" || key === " ") {
+        const button=event.target.closest?.("button");if(button&&button.id!=="start-btn")return;
+        event.preventDefault();if(!event.repeat)advancePreparation();return;
+      }
+    }
     if (state === "story" && (key === "enter" || key === " ")) { advanceStory(); return; }
     if (state === "end" && (key === "r" || key === "enter")) { startRun(); return; }
     if (key === "p" && (state === "playing" || state === "paused")) {
@@ -4540,7 +4603,7 @@
   window.addEventListener("mouseup", (event) => { if (event.button === 0) input.mouse.down = false; });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-  $("start-btn").addEventListener("click", openStory);
+  $("start-btn").addEventListener("click", advancePreparation);
   $("codex-btn").addEventListener("click", openCodex);
   $("codex-close").addEventListener("click", closeCodex);
   $("story-next").addEventListener("click", advanceStory);
@@ -4564,27 +4627,20 @@
   document.querySelectorAll(".seed-card").forEach((button) => button.addEventListener("click", () => selectSeed(Number(button.dataset.seed))));
   document.querySelectorAll(".weapon-card").forEach((button) => {
     button.title = WEAPONS[button.dataset.weapon].copy;
-    button.addEventListener("click", () => {
-      selectedWeapon = button.dataset.weapon;
-      document.querySelectorAll(".weapon-card").forEach((card) => card.classList.toggle("active", card === button));
-      sound.tone(360, .08, "square", .035, 120);
-    });
+    button.addEventListener("click", () => selectWeapon(button.dataset.weapon));
   });
   document.querySelectorAll(".character-card").forEach((button) => button.addEventListener("click", () => {
-    selectedCharacter = button.dataset.character;
-    document.querySelectorAll(".character-card").forEach((card) => card.classList.toggle("active", card === button));
-    const character = CHARACTERS[selectedCharacter];
-    document.querySelector(".ai-mascot em").textContent = character.code;
-    document.querySelector(".ai-mascot").dataset.character = selectedCharacter;
-    document.querySelector(".pitch b").textContent = `${character.name} ${character.code}`;
-    renderCharacterDetail();
-    sound.tone(430, .08, "triangle", .04, 180);
+    selectCharacter(button.dataset.character);
   }));
   document.querySelectorAll("[data-meta]").forEach((button) => button.addEventListener("click", () => upgradeMeta(button.dataset.meta)));
   ui.sound.addEventListener("click", () => { sound.enabled = !sound.enabled; ui.sound.classList.toggle("muted", !sound.enabled); if (sound.enabled) sound.tone(520, .08, "sine", .04, 180); });
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
+      preparation68: () => ({ step:preparationStep, character:selectedCharacter, weapon:selectedWeapon, state, transitioning:ui.start.classList.contains("is-switching") }),
+      depth68: () => ({ player:{x:game.player.x,y:game.player.y}, stats:game.depthStats, props:window.WildrootDepth.props.map((prop)=>({...prop})) }),
+      viewZone: (id = "home", night = false) => { const zone=zonePosition(id);game.player.x=zone.x+135;game.player.y=zone.y+145;game.camera.x=zone.x;game.camera.y=zone.y;game.phase=night?"night":"day";game.enemies.length=0;game.freezeTimer=999;ui.mission.classList.add("hidden");ui.terrainCard.classList.add("hidden");ui.aiSpeech.classList.add("hidden");game.toast.time=0;game.dayStoryShown[1]=true;return zone; },
+      depthScene: (x,y) => { game.player.x=x;game.player.y=y;game.camera.x=x;game.camera.y=y;game.enemies.length=0;game.freezeTimer=999;return true; },
       content67: () => ({ items: MERCHANT_ITEMS.map(({id,cost,daily})=>({id,cost,daily:Boolean(daily)})), nodes: game.worldInteractables.map((node)=>({...node})), rendered: game.lastRenderedInteractables || [], charges: { pollen:game.pollenCharges, ward:game.harvestWardCharges }, crystals:meta.crystals, weaponFx:{...game.weaponFx}, wetReserve:game.waterReserve, interactReach:game.interactionReach, dailyOwned:{...game.merchantDailyOwned} }),
       resources: (values = {}) => { for(const key of ["coins","water"])if(values[key]!==undefined)game[key]=values[key];if(values.hp!==undefined)game.player.hp=values.hp;if(values.shovel!==undefined)game.activeTools.shovel=values.shovel;return true; },
       offerShop: (ids) => { game.phase="rest";game.merchantStock=ids.filter((id)=>MERCHANT_ITEMS.some((item)=>item.id===id));renderRestShop();return true; },
@@ -4670,8 +4726,12 @@
     $("lab-btn").addEventListener("click", () => $("lab-overlay").classList.remove("hidden"));
     $("lab-close").addEventListener("click", () => $("lab-overlay").classList.add("hidden"));
     $("lab-overlay").addEventListener("click", (event) => { if (event.target === $("lab-overlay")) $("lab-overlay").classList.add("hidden"); });
+    $("character-prev").addEventListener("click", () => cyclePreparation(-1));
+    $("character-next").addEventListener("click", () => cyclePreparation(1));
+    $("preparation-back").addEventListener("click", () => setPreparationStep("character"));
   }
   initializeArtInterface();
+  setPreparationStep("character", false);
   companionAtlas.addEventListener("load", renderCompanionPortraits);
   renderCharacterDetail();
   updateMetaDisplay();
