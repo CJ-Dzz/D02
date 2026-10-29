@@ -8,9 +8,9 @@
 
 [固定在线入口](https://cj-dzz.github.io/D02/wildroot/) · [下载离线版](https://cj-dzz.github.io/D02/wildroot/Wildroot-Offline.zip)
 
-在线入口随发布分支更新，无需每轮替换提交编号，也不经过 HTMLPreview 或 chatgpt.site。网络托管无法保证永远可用；下载离线包、解压并双击其中的 `index.html`，即使网站停用也能继续玩下载时的版本。
+在线入口随发布分支更新，无需每轮替换提交编号，也不经过 HTMLPreview 或 chatgpt.site。在线 HTML 约 21 KB，脚本、图集与声音分文件加载，减少等待整页大文件的时间并复用浏览器缓存。网络托管无法保证永远可用；下载离线包、解压并双击其中的 `index.html`，即使网站停用也能继续玩下载时的版本。
 
-从源码游玩时，双击打开 [`index.html`](./index.html)，先选 AI 娘、确认后选武器，再点击“开始远征”。游戏不需要安装依赖，也不需要联网。复制源码时保留 `assets/` 文件夹、三个样式文件及七个 JavaScript 文件；公开版和离线包会内联全部素材与语音。
+从源码游玩时，双击打开 [`index.html`](./index.html)，先选 AI 娘、确认后选武器，再点击“开始远征”。游戏不需要安装依赖，也不需要联网。复制源码时保留 `assets/` 文件夹、三个样式文件及七个 JavaScript 文件；离线包内联全部素材与语音。
 
 主菜单底部可以导出和导入 JSON 存档，包含芽晶、实验室、图鉴、成就和历史统计。不同域名、浏览器和文件路径的本地存档可能相互独立，迁移前请导出备份。当前只备份局外进度，暂不支持未结束远征的中途续玩。
 
@@ -81,5 +81,7 @@
 发布独立页面：`python scripts/build-public.py <输出HTML路径>`。构建会内联四张透明图集、配乐引擎与六句技能语音，保留原始 alpha，不增加运行时依赖。
 
 生成离线包：`python scripts/build-offline.py <独立HTML路径> <输出ZIP路径>`。
+
+生成在线入口：`python scripts/build-pages.py <发布目录/index.html>`，再将七个脚本、三个样式和 `assets/` 放在同一发布目录。在线脚本和样式添加 BUILD 版本参数，更新仍使用同一游玩地址。
 
 碰撞与地图连通测试：`node scripts/physics-review.cjs`。实际游戏运行与 Canvas 渲染回归：`node scripts/runtime-review.cjs`，测试环境另需 `linkedom` 与 `@napi-rs/canvas`，运行游戏本身不需要这些依赖。Steam 发布差距与验收目标见 [`STEAM_RELEASE_PLAN.md`](./STEAM_RELEASE_PLAN.md)。
