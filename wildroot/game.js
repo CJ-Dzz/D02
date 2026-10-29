@@ -340,6 +340,38 @@
     size: 2 + (i % 4),
     tone: i % 3
   }));
+  const worldPhysics=window.WildrootPhysics;
+  const riverSolids=[[0,180],[330,660],[820,1140],[1300,WORLD_H]].map(([top,bottom],i)=>({id:`river-${i}`,shape:"rect",x:1110,y:top,w:160,h:bottom-top,blocksShots:false}));
+  const baseSolids=window.WildrootDepth.solids;
+  const bridgeSolids=[...baseSolids,...riverSolids];
+  let obstacleCache=null;
+  function worldObstacles(){
+    const fixed=hasTerrain("bridge")?bridgeSolids:baseSolids;if(!game)return fixed;
+    const nodes=game.worldInteractables,chests=game.chests,chestState=chests.map(chest=>chest.opened?1:0).join(""),irrigation=hasTerrain("irrigation");
+    if(obstacleCache?.game===game&&obstacleCache.fixed===fixed&&obstacleCache.nodes===nodes&&obstacleCache.chests===chests&&obstacleCache.chestState===chestState&&obstacleCache.irrigation===irrigation)return obstacleCache.value;
+    const home=zonePosition("home"),dynamic=[{id:"merchant-base",shape:"ellipse",x:home.x+159,y:home.y+131,rx:20,ry:11,blocksShots:false}];
+    for(const node of game.worldInteractables||[])dynamic.push({id:`facility-${node.id}`,shape:"ellipse",x:node.x,y:node.y+11,rx:19,ry:11,blocksShots:true});
+    for(const chest of game.chests||[])if(!chest.opened)dynamic.push({id:"relic-chest",shape:"ellipse",x:chest.x,y:chest.y+10,rx:16,ry:10,blocksShots:true});
+    if(irrigation)dynamic.push({id:"irrigation-base",shape:"ellipse",x:game.irrigation.x,y:game.irrigation.y+12,rx:24,ry:15,blocksShots:true});
+    const value=[...fixed,...dynamic];obstacleCache={game,fixed,nodes,chests,chestState,irrigation,value};return value;
+  }
+  function actorOptions(actor){
+    const player=actor===game?.player;
+    return {radius:player?11:clamp(actor.radius*.58,8,30),offsetY:player?11:actor.radius*.35,bounds:{minX:28,maxX:WORLD_W-28,minY:28+(player?11:actor.radius*.35),maxY:WORLD_H-28+(player?11:actor.radius*.35)}};
+  }
+  function airborne(actor){return actor.type==="wasp"||actor.type==="crowboss";}
+  function moveActor(actor,dx,dy,avoid=false){
+    const obstacles=airborne(actor)?[]:worldObstacles(),options=actorOptions(actor),start={x:actor.x,y:actor.y};
+    const result=worldPhysics.move(actor,dx,dy,obstacles,options);
+    if(avoid&&result.blocked&&Math.hypot(dx,dy)>.01&&Math.hypot(actor.x-start.x,actor.y-start.y)<Math.hypot(dx,dy)*.65){
+      // 落地敌人贴着障碍侧缘绕行，保留一段转向偏好以免左右抖动。
+      if(!actor.avoidUntil||actor.age>actor.avoidUntil){actor.avoidSign=Math.sin(actor.seed||0)>=0?1:-1;actor.avoidUntil=actor.age+1.2;}
+      const a=Math.atan2(dy,dx)+actor.avoidSign*1.35,length=Math.hypot(dx,dy);
+      worldPhysics.move(actor,Math.cos(a)*length,Math.sin(a)*length,obstacles,options);
+    }
+    return result;
+  }
+  function safeWorldPoint(x,y,r=6){return worldPhysics.safePoint(x,y,r,worldObstacles(),{minX:32,maxX:WORLD_W-32,minY:32,maxY:WORLD_H-32});}
   const MAP_VARIANTS = [
     { name: "苔原回潮", day: ["#a1ae8a", "#8d9c75", "#819269"], accent: "#d9ef9a", relic: "#648b62" },
     { name: "锈沙花季", day: ["#afa884", "#9f9d77", "#89936d"], accent: "#f2be73", relic: "#986c55" },
@@ -560,6 +592,7 @@
     input.dash = false;
     input.skill = false;
     if (hasTerrain("bridge")) { game.player.x = 1055; game.camera.x = 1055; }
+    moveActor(game.player,0,0);
     selectSeed(startingIds[0]);
     rollMerchantStock(true);
     generateWorldInteractables();
@@ -1081,6 +1114,7 @@
         game.terrainDamageTimer = .8;
       }
     }
+    moveActor(game.player,0,0);
 
     if (hasTerrain("irrigation")) {
       const station = game.irrigation;
@@ -1273,7 +1307,8 @@
   function dropRelicChest(x, y, day = game.day) {
     if (game.nightChestDays[day]) return;
     game.nightChestDays[day] = true;
-    game.chests.push({ x: clamp(x, 70, WORLD_W - 70), y: clamp(y, 70, WORLD_H - 70), day, opened: false, pulse: 0 });
+    const point=safeWorldPoint(clamp(x,70,WORLD_W-70),clamp(y,70,WORLD_H-70),18);
+    game.chests.push({ ...point, day, opened: false, pulse: 0 });
     showToast("关键遗物箱已掉落", "靠近后按 E 开启；永久基础属性只存在于这些遗物中");
     aiSay("这只箱子不会消失。里面是能改变本轮底层参数的真家伙。", 4);
   }
@@ -1315,6 +1350,7 @@
         discoverEntry(`elite:${affix.id}`, 1);
       }
     }
+    moveActor(enemy,0,0);
     return enemy;
   }
 
@@ -1554,13 +1590,14 @@
 
     if (p.dashTime > 0) {
       p.dashTime -= dt;
-      p.x += p.dashDir.x * 690 * dt;
-      p.y += p.dashDir.y * 690 * dt;
+      const collision=moveActor(p,p.dashDir.x*690*dt,p.dashDir.y*690*dt);
+      if(collision.blocked&&(!game.wallFeedback||game.elapsed-game.wallFeedback>.22)){
+        game.wallFeedback=game.elapsed;burst(p.x,p.y+14,"#c9bf91",5,65);sound.tone(145,.045,"triangle",.014,-50);
+      }
       if (chance(.7)) game.particles.push({ x: p.x, y: p.y, vx: rand(-25, 25), vy: rand(-25, 25), life: .28, maxLife: .28, size: rand(4, 9), color: "#78d8c9", alpha: .7, shape: "square" });
     } else {
       const speedBoost = game.overclockTime > 0 ? 1.18 : 1;
-      p.x += move.x * p.speed * speedBoost * dt;
-      p.y += move.y * p.speed * speedBoost * dt;
+      moveActor(p,move.x*p.speed*speedBoost*dt,move.y*p.speed*speedBoost*dt);
     }
     p.x = clamp(p.x, 28, WORLD_W - 28);
     p.y = clamp(p.y, 28, WORLD_H - 28);
@@ -1807,7 +1844,7 @@
         damageEnemy(enemy, damage * cropEdge * (crit ? 1.7 : 1), crit);
         if (!enemy.dead && auras.has("clone")) damageEnemy(enemy, damage * .28, false);
         const push = norm(enemy.x - p.x, enemy.y - p.y);
-        if (!isBossType(enemy.type)) { enemy.x += push.x * 24; enemy.y += push.y * 24; }
+        if (!isBossType(enemy.type)) moveActor(enemy,push.x*24,push.y*24);
         if (auras.has("mint")) enemy.frozen = Math.max(enemy.frozen || 0, 1.35 * game.mintPower);
         if (auras.has("pepper")) for (const other of game.enemies) if (!other.dead && other !== enemy && dist(other, enemy) < 54) damageEnemy(other, damage * .22, false);
       if (auras.has("corn")) for (const other of game.enemies) if (!other.dead && other !== enemy && dist(other, enemy) < 70 * game.cornPower) damageEnemy(other, damage * .18, false);
@@ -1864,6 +1901,8 @@
           b.vy = Math.sin(steered) * speed;
         }
       }
+      const hit=worldPhysics.trace(b.x,b.y,b.x+b.vx*dt,b.y+b.vy*dt,Math.min(4,b.radius),worldObstacles());
+      if(hit){b.x=hit.x;b.y=hit.y;b.dead=true;burst(b.x,b.y,"#b4b58a",3,45);continue;}
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -2035,7 +2074,7 @@
       e.frozen = Math.max(0, (e.frozen || 0) - dt);
       if (e.enter > 0) {
         e.enter -= dt;
-        e.y += 36 * dt;
+        moveActor(e,0,36*dt);
         continue;
       }
 
@@ -2081,8 +2120,7 @@
         e.vy = lerp(e.vy, Math.sin(a) * e.speed * charge * chill, dt * 5);
       }
       e.facing = Math.atan2(e.vy, e.vx);
-      e.x += e.vx * dt;
-      e.y += e.vy * dt;
+      moveActor(e,e.vx*dt,e.vy*dt,true);
       e.x = clamp(e.x, 20, WORLD_W - 20);
       e.y = clamp(e.y, 20, WORLD_H - 20);
 
@@ -2133,8 +2171,7 @@
     const orbitSpeed = (e.type === "crowboss" ? 96 : e.type === "slimeboss" ? 31 : 42) * stageSpeed;
     e.vx = lerp(e.vx, Math.cos(a) * e.speed * moveSign + Math.cos(e.age * .8) * orbitSpeed, dt * 1.5);
     e.vy = lerp(e.vy, Math.sin(a) * e.speed * moveSign + Math.sin(e.age * .8) * orbitSpeed, dt * 1.5);
-    e.x = clamp(e.x + e.vx * dt, 70, WORLD_W - 70);
-    e.y = clamp(e.y + e.vy * dt, 70, WORLD_H - 70);
+    moveActor(e,e.vx*dt,e.vy*dt,true);
     e.facing = a;
 
     if (e.skillTimer <= 0) {
@@ -2245,6 +2282,8 @@
   function updateEnemyBullets(dt) {
     const p = game.player;
     for (const b of game.enemyBullets) {
+      const cover=worldPhysics.trace(b.x,b.y,b.x+b.vx*dt,b.y+b.vy*dt,Math.min(4,b.radius),worldObstacles());
+      if(cover){b.dead=true;burst(cover.x,cover.y,"#a0b28e",2,40);continue;}
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -2294,8 +2333,7 @@
     p.hp -= remaining;
     p.hurtCooldown = .62;
     const away = norm(p.x - fromX, p.y - fromY);
-    p.x += away.x * 16;
-    p.y += away.y * 16;
+    moveActor(p,away.x*16,away.y*16);
     game.shake = .72;
     game.flash = remaining > 0 ? .7 : 0;
     burst(p.x, p.y, remaining > 0 ? "#ff685e" : "#75eee7", 11, 150);
@@ -2893,6 +2931,7 @@
     if (type === "xp" && hasTerrain("bridge") && x > 1100 && x < 1280) {
       x = x < 1190 ? 1086 : 1294;
     }
+    ({x,y}=safeWorldPoint(x,y,6));
     const merged = game.pickups.find((item) => !item.dead && item.type === type && item.variant === variant && Math.hypot(item.x - x, item.y - y) <= DROP_CONFIG.mergeRadius);
     if (merged) {
       merged.value += value;
@@ -2925,8 +2964,7 @@
         item.vx += n.x * pull * dt;
         item.vy += n.y * pull * dt;
       }
-      item.x += item.vx * dt;
-      item.y += item.vy * dt;
+      worldPhysics.move(item,item.vx*dt,item.vy*dt,worldObstacles(),{radius:5,offsetY:0,bounds:{minX:24,maxX:WORLD_W-24,minY:24,maxY:WORLD_H-24}});
       if (item.type === "xp" && hasTerrain("bridge") && item.x > 1100 && item.x < 1280) {
         item.x = item.x < 1190 ? 1086 : 1294;
         item.vx = 0;
@@ -3418,7 +3456,7 @@
       showToast("这里有野外设施", "离设施远一点再开垦，保留互动空间");
       return false;
     }
-    if (window.WildrootDepth.props.some((prop) => Math.abs(prop.x-x)<prop.w*.55+30 && y<prop.y+28 && y>prop.y-prop.h-15)) {
+    if (worldPhysics.blocked(x,y,34,worldObstacles())) {
       showToast("这里是场景设施", "请在房屋、树木和水箱的外围开垦");return false;
     }
     const zone = FIELD_ZONES.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
@@ -3609,10 +3647,6 @@
       const s = scenery[i];
       ctx.fillStyle = night ? (i % 14 ? "#72837c22" : "#384f5b22") : (i % 14 ? "#c4cf9424" : "#647d5b22");
       ctx.beginPath(); ctx.ellipse(s.x, s.y, 21 + s.size * 4, 10 + s.size * 2, (s.x + s.y) * .001, 0, TAU); ctx.fill();
-      if (i % 21 === 0) {
-        ctx.fillStyle = night ? "#59606c" : "#7f8974"; ctx.strokeStyle = night ? "#9295a5" : "#c8c6aa"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(s.x - 13, s.y + 6); ctx.lineTo(s.x - 4, s.y - 10); ctx.lineTo(s.x + 13, s.y - 7); ctx.lineTo(s.x + 18, s.y + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
-      }
     }
     ctx.strokeStyle = night ? "#bac6b00b" : "#f2f0d50c";
     ctx.lineWidth = 1;
@@ -4633,6 +4667,11 @@
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     window.__wildrootDebug = {
+      physics70: () => ({solids:worldObstacles(),player:{x:game.player.x,y:game.player.y},penetrating:worldPhysics.blocked(game.player.x,game.player.y+11,11,worldObstacles())}),
+      motion70: (x,y,keys=[],dash=false,frames=60) => {game.player.x=x;game.player.y=y;game.player.dashTime=0;game.player.dashCooldown=0;game.freezeTimer=999;input.mouse.down=false;input.keys=new Set(keys);input.dash=dash;for(let i=0;i<frames;i++)updatePlayer(1/60);input.keys.clear();game.camera.x=game.player.x;game.camera.y=game.player.y;return {x:game.player.x,y:game.player.y,penetrating:worldPhysics.blocked(game.player.x,game.player.y+11,11,worldObstacles())};},
+      push70: (x,y,fromX,fromY) => {const p=game.player;p.x=x;p.y=y;p.hurtCooldown=0;p.dashTime=0;p.dodge=0;hurtPlayer(1,fromX,fromY);return {x:p.x,y:p.y,penetrating:worldPhysics.blocked(p.x,p.y+11,11,worldObstacles())};},
+      enemyRoute70: (type,x,y,targetX,targetY,frames=240) => {const e=createEnemy(type,x,y);for(let i=0;i<frames;i++){e.age+=1/60;const n=norm(targetX-e.x,targetY-e.y);moveActor(e,n.x*90/60,n.y*90/60,true);}return {x:e.x,y:e.y,penetrating:!airborne(e)&&worldPhysics.blocked(e.x,e.y+actorOptions(e).offsetY,actorOptions(e).radius,worldObstacles())};},
+      archive70: (data) => sanitizeArchive(data),
       audio69: () => sound.snapshot(),
       trySkill69: () => activateSkill(),
       ambientSpeech69: () => aiSay("这是一句普通场景提示。",3),
@@ -4769,8 +4808,38 @@
     $("audio-mute").addEventListener("click",()=>{sound.enabled=!sound.enabled;renderAudioSettings();});
     renderAudioSettings();
   }
+  function sanitizeArchive(value){
+    if(!value||typeof value!=="object"||Array.isArray(value)||!["best","crystals","runs"].some(key=>Number.isFinite(value[key])))throw Error("这不是有效的荒穗存档");
+    const count=(value,max=1e12)=>clamp(Math.floor(Number(value)||0),0,max),next={};
+    for(const key of ["best","crystals","runs","hybridCrafts"])next[key]=count(value[key]);
+    next.modules={};for(const key of ["compute","soil","backup","radar","memory","bond"])next.modules[key]=count(value.modules?.[key],8);
+    next.harvestStats={};for(const crop of CROP_TYPES)next.harvestStats[crop.id]=count(value.harvestStats?.[crop.id]);
+    for(const field of ["discoveries","achievements"]){next[field]={};if(value[field]&&typeof value[field]==="object"&&!Array.isArray(value[field]))for(const [key,v]of Object.entries(value[field]).slice(0,3000))if(/^[a-z0-9:_-]{1,96}$/i.test(key)&&key!=="__proto__"&&Number.isFinite(v)&&v>0)next[field][key]=count(v,1e14);}
+    return next;
+  }
+  function initializeArchive(){
+    const status=$("archive-status");let timer;
+    const message=text=>{status.textContent=text;clearTimeout(timer);timer=setTimeout(()=>status.textContent="",6500);};
+    $("save-export").addEventListener("click",()=>{
+      const blob=new Blob([JSON.stringify({format:"wildroot-save",version:1,build:"7.0",savedAt:new Date().toISOString(),meta},null,2)],{type:"application/json"});
+      const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="Wildroot-save-"+new Date().toISOString().slice(0,10)+".json";link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);message("局外进度已导出，请保管好备份文件。");
+    });
+    $("save-import").addEventListener("click",()=>$("save-file").click());
+    $("save-file").addEventListener("change",async event=>{
+      const fileInput=event.currentTarget||event.target,file=fileInput.files?.[0];if(!file)return;
+      try{
+        if(file.size>1024*1024)throw Error("存档文件过大");
+        const data=JSON.parse(await file.text());if(data.format&&data.format!=="wildroot-save")throw Error("存档格式不匹配");
+        if(data.format&&data.version!==1)throw Error("存档版本暂不支持");
+        const next=sanitizeArchive(data.meta||data);
+        localStorage.setItem("wildroot-save",JSON.stringify(next));meta=next;updateMetaDisplay();updateLoadoutAvailability();message("存档已恢复：芽晶、实验室、图鉴和成就已更新。");
+      }catch(error){message("未导入："+(error instanceof SyntaxError?"文件不是有效 JSON":error.message));}
+      fileInput.value="";
+    });
+  }
   initializeArtInterface();
   initializeAudioInterface();
+  initializeArchive();
   setPreparationStep("character", false);
   companionAtlas.addEventListener("load", renderCompanionPortraits);
   renderCharacterDetail();

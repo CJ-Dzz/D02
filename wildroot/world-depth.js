@@ -1,4 +1,4 @@
-/* BUILD 6.8 / 斜俯视场景：地表、侧壁、投影与按脚底排序的立体物件。 */
+/* BUILD 7.0 / 斜俯视场景：实体底座、风化材质、接地细节与深度排序。 */
 (() => {
   "use strict";
   const TAU=Math.PI*2;
@@ -15,6 +15,25 @@
     {id:"crater-rock",kind:"rock",x:1440,y:1277,w:70,h:48},
     {id:"west-sign",kind:"ruin",x:274,y:635,w:61,h:80}
   ];
+  // 碎石与大型地标使用同一份物件数据，不能再画出没有实体的石块。
+  const fields=[[1190,740],[610,390],[1770,390],[1630,1110]];
+  for(let i=0;i<420;i+=21){
+    const x=35+((i*83.17)%2310),y=35+((i*139.71)%1410);
+    if(x<75||x>2305||y<75||y>1405||Math.abs(x-1190)<125||fields.some(([a,b])=>Math.abs(x-a)<285&&Math.abs(y-b)<235)||PROPS.some(p=>Math.hypot(p.x-x,p.y-y)<115))continue;
+    PROPS.push({id:`rubble-${i}`,kind:"rock",x,y,w:32+(i%3)*5,h:23+(i%2)*4,small:true});
+  }
+  function colliders(){
+    const result=[];
+    for(const p of PROPS){
+      const add=(part,shape)=>result.push({id:p.id+part,prop:p.id,blocksShots:true,...shape});
+      if(p.kind==="tree")add("",{shape:"ellipse",x:p.x+3,y:p.y-3,rx:10,ry:8});
+      else if(p.kind==="rock")add("",{shape:"ellipse",x:p.x+p.w*.02,y:p.y-p.h*.19,rx:p.w*.49,ry:p.h*.32});
+      else if(p.kind==="ruin"&&p.w>80){for(const [part,left,width]of [["-left",-.5,.30],["-right",.17,.43]])add(part,{shape:"rect",x:p.x+p.w*left,y:p.y-29,w:p.w*width,h:33});}
+      else {const w=p.kind==="tank"?p.w*.88:p.w*.98,h=p.kind==="crates"?38:p.kind==="tank"?24:32;add("",{shape:"rect",x:p.x-w*.49,y:p.y-h+4,w,h});}
+    }
+    return result;
+  }
+  const SOLIDS=colliders();
   function polygon(c,points,fill,stroke=null,width=1) {
     c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();
     if(fill){c.fillStyle=fill;c.fill();}if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.stroke();}
@@ -93,7 +112,9 @@
   function prop(c,p,{night,time,actors=[]}) {
     const obscures=actors.some((a)=>Math.abs(a.x-p.x)<p.w*.57&&a.y<p.y+13&&a.y>p.y-p.h-30);
     c.save();c.translate(p.x,p.y);c.globalAlpha=obscures?.33:1;
-    c.fillStyle="#15382b44";c.beginPath();c.ellipse(15,8,p.w*.65,18,0,0,TAU);c.fill();
+    c.fillStyle="#15382b35";c.beginPath();c.ellipse(12,7,p.w*.62,p.small?7:16,0,0,TAU);c.fill();
+    // 深色接触阴影仅贴住实体底座，冠层、屋顶的投影不能误导通行判断。
+    c.fillStyle="#1c352e66";c.beginPath();c.ellipse(1,-1,p.kind==="tree"?13:p.w*.47,p.kind==="tree"?6:p.small?5:9,0,0,TAU);c.fill();
     const ink=night?"#203b34":"#3b563e",light=night?"#87957c":"#c6c29a",mid=night?"#4b6351":"#8a9c70",dark=night?"#304b40":"#566f4f";
     if(p.kind==="cabin"||p.kind==="glass"){
       const glass=p.kind==="glass",w=p.w,h=p.h;
@@ -107,6 +128,11 @@
       c.fillStyle="#b2a273";c.fillRect(-w*.5,-11,w*.76,9);
       for(let i=0;i<5;i++)line(c,-w*.45+i*w*.13,-h*.68,-w*.16+i*w*.14,-h*.91,"#e7dfad40",1);
       if(!glass){line(c,-w*.5,-h*.19,w*.25,-h*.14,"#d4c99855",1);c.fillStyle="#e1cb87";c.beginPath();c.arc(w*.19,-h*.44,3,0,TAU);c.fill();}
+      // 玻璃窗分格、门铰链、屋檐排水与黄铜固定件。
+      for(let i=0;i<4;i++){const xx=-w*.43+i*w*.16;line(c,xx,-h*.61,xx+w*.10,-h*.43,glass?"#ecf2d069":"#a9ba8055",1);c.fillStyle="#d8c48e";c.beginPath();c.arc(xx,-h*.34,1.4,0,TAU);c.fill();}
+      line(c,-w*.5,-h*.61,w*.25,-h*.54,ink,2.7);
+      if(glass){for(let i=0;i<3;i++){const xx=-w*.37+i*w*.2;c.fillStyle="#576c44";c.fillRect(xx,-17,w*.13,7);line(c,xx+w*.06,-17,xx+w*.06,-29,"#b6cc8d",1.6);}}
+      else {line(c,-7,-h*.40,-7,-h*.35,"#d6c18a",2);line(c,-7,-h*.17,-7,-h*.12,"#d6c18a",2);c.fillStyle="#d7ce9c";c.fillRect(-w*.34,-h*.76,17,3);}
     }else if(p.kind==="tank"){
       const w=p.w,h=p.h;
       for(const x of [-w*.33,w*.33]){line(c,x,0,x,-h*.37,ink,5);line(c,x,1,x+20,10,"#183c2b33",4);}
@@ -118,6 +144,8 @@
       c.fillStyle="#355d54";c.fillRect(-w*.29,-h*.63,7,h*.24);c.fillStyle="#a4cdc0";c.fillRect(-w*.27,-h*.58,3,h*.18);
       for(let i=0;i<3;i++)line(c,-w*.37,-h*.58+i*7,-w*.27,-h*.58+i*7,"#ddd8ab",1);
       c.fillStyle="#beaa74";c.beginPath();c.arc(w*.62,-h*.43,5,0,TAU);c.fill();line(c,w*.62-3,-h*.43,w*.62+3,-h*.43,ink,1);
+      for(let i=0;i<5;i++){const yy=-h*.87+i*h*.13;line(c,w*.17,yy,w*.42,yy,"#3b574660",1);c.fillStyle="#d1c38e";c.beginPath();c.arc(-w*.34,yy,1.2,0,TAU);c.fill();}
+      c.fillStyle="#e0cf98";c.beginPath();c.roundRect(-w*.12,-h*.59,w*.29,h*.11,2);c.fill();line(c,-w*.07,-h*.55,w*.1,-h*.55,ink,1);
     }else if(p.kind==="ruin"){
       const w=p.w,h=p.h;
       polygon(c,[[-w/2,0],[-w/2,-h*.8],[-w*.3,-h],[-w*.1,-h*.86],[w*.1,-h*.93],[w*.4,-h*.69],[w*.4,0]],mid,ink,2);
@@ -126,6 +154,8 @@
       c.fillStyle=night?"#273e34":"#334f38";c.beginPath();c.roundRect(-w*.2,-h*.62,w*.36,h*.65,[18,18,0,0]);c.fill();
       c.strokeStyle="#a4b775";c.lineWidth=2;c.beginPath();c.moveTo(-w*.41,-h*.73);c.bezierCurveTo(0,-h*.4,-w*.4,-h*.2,-w*.28,-8);c.stroke();
       for(let i=0;i<7;i++){const xx=-w*.33+Math.sin(i)*8,yy=-h*.7+i*h*.09;c.fillStyle=i%2?"#7d9c65":"#acc080";c.beginPath();c.ellipse(xx,yy,6,3,i%2?-.7:.7,0,TAU);c.fill();}
+      for(let i=0;i<8;i++){const xx=-w*.44+(i*19)%(w*.78),yy=-h*.82+(i*31)%(h*.68);line(c,xx,yy,xx+7,yy+4,"#ccd0aa66",1);}
+      line(c,-w*.48,-h*.18,-w*.34,-h*.11,ink,1);line(c,-w*.34,-h*.11,-w*.40,-5,ink,1);
     }else if(p.kind==="tree"){
       const sway=Math.sin(time*.7+p.x)*2;
       polygon(c,[[-7,1],[-4,-p.h*.6],[7,-p.h*.7],[13,-2]],"#766c48",ink,1);
@@ -133,19 +163,25 @@
       for(let i=0;i<lobes.length;i++){const [x,y,rx,ry]=lobes[i];c.fillStyle=["#4e7b59","#608865","#729466","#83a16e","#91ad77"][i];c.strokeStyle=ink;c.lineWidth=1.1;c.beginPath();c.ellipse(x*p.w+sway,y*p.h,rx*p.w,ry*p.h,-.08,0,TAU);c.fill();c.stroke();}
       for(let i=0;i<21;i++){const x=sway+Math.sin(i*2.4)*p.w*.4,y=-p.h*.55-(i*17)%(p.h*.55);c.fillStyle=i%5?"#ccda9f35":"#e0c587";c.beginPath();c.ellipse(x,y,i%5?5:2.5,i%5?2:3,-.5,0,TAU);c.fill();}
       line(c,2,-p.h*.21,4,-p.h*.35,"#b9a170",2);
+      for(const [x,y]of [[-13,2],[15,3],[-19,-3]]){line(c,3,-p.h*.19,x,y,"#7b704d",3);line(c,3,-p.h*.19,x,y,"#baa47966",1);}
     }else if(p.kind==="crates"){
       for(const [x,y] of [[-20,0],[19,-9],[-8,-26]]){
         polygon(c,[[x-18,y-22],[x+12,y-22],[x+12,y],[x-18,y]],"#ae9664",ink,1.5);
         polygon(c,[[x+12,y-22],[x+24,y-30],[x+24,y-7],[x+12,y]],"#6e8052",ink,1);
         polygon(c,[[x-18,y-22],[x-7,y-30],[x+24,y-30],[x+12,y-22]],"#c6b37e",ink,1);
         line(c,x-15,y-19,x+8,y-3,"#d4bf8c",2);
+        line(c,x-15,y-6,x+8,y-18,"#766548",1.3);for(const xx of [x-13,x+8])for(const yy of [y-18,y-4]){c.fillStyle="#40543b";c.beginPath();c.arc(xx,yy,1.1,0,TAU);c.fill();}
       }
     }else{
       polygon(c,[[-p.w*.5,-6],[-p.w*.38,-p.h*.75],[-p.w*.05,-p.h],[p.w*.4,-p.h*.8],[p.w*.55,-8],[p.w*.1,4]],mid,ink,1.5);
       polygon(c,[[-p.w*.38,-p.h*.75],[-p.w*.05,-p.h],[p.w*.4,-p.h*.8],[p.w*.08,-p.h*.5]],light);
       polygon(c,[[p.w*.08,-p.h*.5],[p.w*.4,-p.h*.8],[p.w*.55,-8],[p.w*.1,4]],dark);
+      line(c,-p.w*.34,-p.h*.69,p.w*.02,-p.h*.51,"#e0d9b877",1.2);
+      line(c,p.w*.10,-p.h*.47,p.w*.23,-p.h*.30,ink,1);line(c,p.w*.23,-p.h*.30,p.w*.15,-p.h*.15,ink,1);
+      for(let i=0;i<7;i++){const x=-p.w*.35+(i*17)%(p.w*.7),y=-p.h*.15+(i%3)*2;c.fillStyle=i%2?"#648358":"#8da16a";c.beginPath();c.ellipse(x,y,p.small?2.5:4,p.small?1.3:2,-.3,0,TAU);c.fill();}
+      if(!p.small){for(let i=0;i<3;i++){const x=-p.w*.44+i*10;line(c,x,3,x-3,-4,"#a7b37d",1.3);}}
     }
     c.restore();return obscures;
   }
-  window.WildrootDepth={ground,river,prop,props:PROPS,terrace};
+  window.WildrootDepth={ground,river,prop,props:PROPS,solids:SOLIDS,terrace};
 })();

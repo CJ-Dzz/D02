@@ -2,11 +2,17 @@
 
 一款可以直接在浏览器中游玩的萌系末日种田战斗 Roguelite。世界熄灭后，玩家与小芽、霹雳或奶泡中的一名 AI 娘共同经营最后的农区，在五日远征中寻找种子库。
 
-当前版本 **BUILD 6.9 · 春天的声音**：加入贯穿准备与战斗的原创配乐《熄灯后的春天》，三名 AI 娘各有两句技能中文语音；音乐、音效、语音可分别调节并保存。角色受伤时保持清晰不透明，三种枪械补充材质、零件和机械细节。美术规范见 [`assets/ART_DIRECTION.md`](./assets/ART_DIRECTION.md)。
+当前版本 **BUILD 7.0 · 扎根的世界**：地图实体底座统一参与碰撞，走路、冲刺、击退和地面敌人不能穿过岩石、树干与建筑；普通弹丸被实体遮挡。场景补充接地阴影、风化材质和结构细节。加入固定在线入口、离线包和局外存档导入导出；延续统一配乐和角色语音。美术规范见 [`assets/ART_DIRECTION.md`](./assets/ART_DIRECTION.md)。
 
 ## 开始游玩
 
-双击打开 [`index.html`](./index.html)，先选 AI 娘、确认后选武器，再点击“开始远征”。游戏不需要安装依赖，也不需要联网。离线复制时保留 `assets/` 文件夹、三个样式文件及六个 JavaScript 文件；公开版会内联全部素材与语音。
+[固定在线入口](https://cj-dzz.github.io/D02/wildroot/) · [下载离线版](https://cj-dzz.github.io/D02/wildroot/Wildroot-Offline.zip)
+
+在线入口随发布分支更新，无需每轮替换提交编号，也不经过 HTMLPreview 或 chatgpt.site。网络托管无法保证永远可用；下载离线包、解压并双击其中的 `index.html`，即使网站停用也能继续玩下载时的版本。
+
+从源码游玩时，双击打开 [`index.html`](./index.html)，先选 AI 娘、确认后选武器，再点击“开始远征”。游戏不需要安装依赖，也不需要联网。复制源码时保留 `assets/` 文件夹、三个样式文件及七个 JavaScript 文件；公开版和离线包会内联全部素材与语音。
+
+主菜单底部可以导出和导入 JSON 存档，包含芽晶、实验室、图鉴、成就和历史统计。不同域名、浏览器和文件路径的本地存档可能相互独立，迁移前请导出备份。当前只备份局外进度，暂不支持未结束远征的中途续玩。
 
 推荐使用 Chrome 或 Edge，并将窗口保持在至少 1280×720。首次点击或按键后开始播放音乐。右上角音符可单独调节音乐、音效与技能语音，或全部静音；静音时仍保留技能字幕。
 
@@ -73,3 +79,7 @@
 可调参数集中在 [`game-config.js`](./game-config.js)，包括波次基础时长与逐波增量、掉落合并与价值、敌人密度与刷新倍率、精英概率、事件间隔、升级属性、选择权重、育种概率、各类种子价格、商店库存数、设施每日概率与类型权重，以及插件分页数量。完整的系统逻辑、作物、流派、敌人、Boss、五日关卡和数值规则见 [`GAME_DESIGN_DOCUMENT.md`](./GAME_DESIGN_DOCUMENT.md)。玩法取舍和参考作品的设计原则记录在 [`DESIGN.md`](./DESIGN.md)。
 
 发布独立页面：`python scripts/build-public.py <输出HTML路径>`。构建会内联四张透明图集、配乐引擎与六句技能语音，保留原始 alpha，不增加运行时依赖。
+
+生成离线包：`python scripts/build-offline.py <独立HTML路径> <输出ZIP路径>`。
+
+碰撞与地图连通测试：`node scripts/physics-review.cjs`。实际游戏运行与 Canvas 渲染回归：`node scripts/runtime-review.cjs`，测试环境另需 `linkedom` 与 `@napi-rs/canvas`，运行游戏本身不需要这些依赖。Steam 发布差距与验收目标见 [`STEAM_RELEASE_PLAN.md`](./STEAM_RELEASE_PLAN.md)。

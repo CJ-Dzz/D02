@@ -102,6 +102,11 @@
 #start-screen .meta-card span { color:#7f9977; }
 #start-screen .meta-card b { color:#b4c096; font-size:10px; }
 #start-screen .version { color:#6f8b71; font-size:8px; }
+.archive-actions { display:flex; align-items:center; gap:15px; margin-left:auto; margin-right:25px; }
+.archive-actions button,.archive-actions a { border:0; background:none; padding:4px 0; color:#a8ba93; font:500 9px var(--font-ui); text-decoration:none; cursor:pointer; }
+.archive-actions button:hover,.archive-actions a:hover { color:#e4d59b; }
+.archive-actions :focus-visible { outline:1px solid #d8c88f; outline-offset:4px; }
+.archive-status { position:absolute; right:35px; bottom:48px; margin:0; max-width:470px; color:#d6d6a9; font:500 10px var(--font-ui); text-align:right; }
 #start-screen .lab-overlay { z-index:40; }
 #start-screen .lab-dialog { color:#334b38; }
 #start-screen .lab-dialog h2 { color:#34523e; }
